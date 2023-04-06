@@ -181,7 +181,7 @@ struct JoinClausesAndActions
     ActionsDAGPtr left_join_expressions_actions;
     /// Right join expressions actions
     ActionsDAGPtr right_join_expressions_actions;
-
+    /// Join expressions actions that involve both tables
     ActionsDAGPtr mixed_join_expressions_actions;
 };
 

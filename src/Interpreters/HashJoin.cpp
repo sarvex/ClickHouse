@@ -21,8 +21,6 @@
 #include <Interpreters/TableJoin.h>
 #include <Interpreters/joinDispatch.h>
 #include <Interpreters/NullableUtils.h>
-#include <Interpreters/Context.h>
-#include <Processors/Formats/IOutputFormat.h>
 
 #include <Storages/IStorage.h>
 
@@ -975,7 +973,6 @@ public:
             else
                 to_columns[j]->insertFrom(*column_from_block.column, row_num);
         }
-
     }
 
     template <bool has_defaults>
@@ -1037,7 +1034,6 @@ public:
     size_t rows_to_add;
     std::unique_ptr<IColumn::Offsets> offsets_to_replicate;
     bool need_filter = false;
-
 
 private:
     std::vector<TypeAndName> type_name;
@@ -1252,8 +1248,7 @@ size_t joinWithExtraConditions(
         for (size_t j = 0; j < right_columns.size(); ++j)
         {
             const auto & column = it->block->getByPosition(j);
-            // if (required_columns.contains(column.name))
-                right_columns[j]->insertFrom(*column.column, it->row_num);
+            right_columns[j]->insertFrom(*column.column, it->row_num);
         }
     }
 
@@ -2228,7 +2223,7 @@ void HashJoin::addMixedFilterCondition(ExpressionActionsPtr additional_filter_ex
             expression_sample_block.getByPosition(0).type->getName());
     }
 
-    bool is_supported = (strictness == JoinStrictness::All) && (kind == JoinKind::Inner || kind == JoinKind::Left);
+    bool is_supported = (strictness == JoinStrictness::All) && (kind == JoinKind::Inner || kind == JoinKind::Left) && table_join->oneDisjunct();
     if (!is_supported)
     {
         throw Exception(ErrorCodes::NOT_IMPLEMENTED,

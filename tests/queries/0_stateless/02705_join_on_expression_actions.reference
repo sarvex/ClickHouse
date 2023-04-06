@@ -1,4 +1,6 @@
-left join
+-- { echoOn }
+
+SELECT t1.attr, t2.attr FROM t1 LEFT  JOIN t2 ON (t1.a < t2.a OR lower(t1.attr) == lower(t2.attr)) AND t1.key = t2.key ORDER BY (t1.attr, t2.attr);
 a	A
 a	B
 a	C
@@ -11,7 +13,7 @@ c	C
 c	D
 d	D
 e	
-inner
+SELECT t1.attr, t2.attr FROM t1 INNER JOIN t2 ON (t1.a < t2.a OR lower(t1.attr) == lower(t2.attr)) AND t1.key = t2.key ORDER BY (t1.attr, t2.attr);
 a	A
 a	B
 a	C
@@ -22,3 +24,21 @@ b	D
 c	C
 c	D
 d	D
+SELECT t1.attr, t2.attr FROM t1 LEFT  JOIN t2 ON t1.key = t2.key AND t1.b + t2.b == t1.c + t2.c ORDER BY t1.attr, t2.attr;
+a	A
+a2	
+b	B
+b	C
+c	B
+c	C
+d	D
+e	
+SELECT t1.attr, t2.attr FROM t1 INNER JOIN t2 ON t1.key = t2.key AND t1.b + t2.b == t1.c + t2.c ORDER BY t1.attr, t2.attr;
+a	A
+b	B
+b	C
+c	B
+c	C
+d	D
+SELECT count() FROM t1 JOIN t2 ON t1.key = t2.key AND t1.a < t2.a;
+6

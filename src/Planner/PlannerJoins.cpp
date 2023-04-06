@@ -40,9 +40,6 @@
 #include <Planner/PlannerContext.h>
 #include <Planner/Utils.h>
 
-#include <Formats/FormatFactory.h>
-#include <Processors/Formats/IOutputFormat.h>
-
 namespace DB
 {
 
@@ -209,29 +206,27 @@ void buildJoinClause(ActionsDAGPtr join_expression_dag,
             right_table_expression_columns_names,
             join_node);
 
-        if (left_expression_sides.size() > 1 || right_expression_sides.size() > 1)
+        if (left_expression_sides.empty() && right_expression_sides.empty())
         {
-            throw Exception(ErrorCodes::INVALID_JOIN_ON_EXPRESSION,
-                "JOIN {} join expression contains column from left and right table",
-                join_node.formatASTForErrorMessage());
-        }
-        else if (left_expression_sides.empty() && right_expression_sides.empty())
-        {
+            /// Condition doesn't involve columns from joining tables
             throw Exception(ErrorCodes::INVALID_JOIN_ON_EXPRESSION,
                 "JOIN {} ON expression {} with constants is not supported",
                 join_node.formatASTForErrorMessage(),
                 join_expressions_actions_node->result_name);
         }
-        else if (!left_expression_sides.empty() && right_expression_sides.empty())
+        else if (left_expression_sides.size() == 1 && right_expression_sides.empty())
         {
+            /// Condition for one joining table: `expr(table.col) == some_value`
             join_clause.addCondition(*left_expression_sides.begin(), join_expressions_actions_node);
         }
-        else if (left_expression_sides.empty() && !right_expression_sides.empty())
+        else if (left_expression_sides.empty() && right_expression_sides.size() == 1)
         {
+            /// Condition for one joining table: `some_value == expr(table.col)`
             join_clause.addCondition(*right_expression_sides.begin(), join_expressions_actions_node);
         }
-        else
+        else if (left_expression_sides.size() == 1 && right_expression_sides.size() == 1)
         {
+            /// Joining key: `expr1(table1.col1) == expr2(table2.col2)`
             auto left_expression_side = *left_expression_sides.begin();
             auto right_expression_side = *right_expression_sides.begin();
 
@@ -268,6 +263,12 @@ void buildJoinClause(ActionsDAGPtr join_expression_dag,
                 join_clause.addCondition(left_expression_side, join_expressions_actions_node);
             }
         }
+        else
+        {
+            /// Cannot be joining key, additional condition:
+            /// `expr1(left.col1, right.col2) == expr2(left.col3, right.col4)`
+            join_clause.addMixedCondition(join_expressions_actions_node);
+        }
 
         return;
     }
@@ -278,11 +279,14 @@ void buildJoinClause(ActionsDAGPtr join_expression_dag,
         right_table_expression_columns_names,
         join_node);
 
-    if (expression_sides.empty()) /// Expression is constant
+    if (expression_sides.empty())
+        /// Expression is constant
         join_clause.addCondition(JoinTableSide::Right, join_expressions_actions_node);
-    else if (expression_sides.size() == 1) /// Expression involves only one table
+    else if (expression_sides.size() == 1)
+        /// Expression involves only one table
         join_clause.addCondition(*expression_sides.begin(), join_expressions_actions_node);
-    else /// Expression involves both tables
+    else
+        /// Expression involves both tables
         join_clause.addMixedCondition(join_expressions_actions_node);
 }
 
@@ -444,32 +448,10 @@ JoinClausesAndActions buildJoinClausesAndActions(const ColumnsWithTypeAndName & 
             add_necessary_name_if_needed(JoinTableSide::Right, dag_filter_condition_node->result_name);
         }
 
-        auto merge_actions_with_and = [&](ActionsDAG::NodeRawConstPtrs & nodes, ActionsDAGPtr & expression_actions) -> const ActionsDAG::Node *
-        {
-            const ActionsDAG::Node * dag_node = nullptr;
-
-            if (nodes.empty())
-                return dag_node;
-
-            if (nodes.size() == 1)
-            {
-                dag_node = nodes[0];
-            }
-            else
-            {
-                auto and_function = FunctionFactory::instance().get("and", planner_context->getQueryContext());
-                dag_node = &expression_actions->addFunction(and_function, nodes, {});
-            }
-            nodes = {dag_node};
-
-            return dag_node;
-        };
-
         auto & mixed_condition_nodes = join_clause.getMixedFilterConditionNodes();
         if (!mixed_condition_nodes.empty())
         {
             ActionsDAGPtr mixed_condition_dag = ActionsDAG::buildFilterActionsDAG(mixed_condition_nodes, {}, {});
-            UNUSED(merge_actions_with_and);
 
             for (const auto & node : mixed_condition_dag->getNodes())
             {
