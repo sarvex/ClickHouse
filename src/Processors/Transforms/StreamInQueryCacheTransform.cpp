@@ -5,26 +5,36 @@ namespace DB
 
 StreamInQueryCacheTransform::StreamInQueryCacheTransform(
     const Block & header_,
-    QueryCachePtr cache,
-    const QueryCache::Key & cache_key,
-    std::chrono::milliseconds min_query_duration,
-    bool squash_partial_results,
-    size_t max_block_size,
-    size_t max_query_cache_size_in_bytes_quota, size_t max_query_cache_entries_quota)
+    std::shared_ptr<QueryCache::Writer> query_cache_writer_,
+    Type type_)
     : ISimpleTransform(header_, header_, false)
-    , cache_writer(cache->createWriter(cache_key, min_query_duration, squash_partial_results, max_block_size, max_query_cache_size_in_bytes_quota, max_query_cache_entries_quota))
+    , query_cache_writer(query_cache_writer_)
+    , type(type_)
 {
 }
 
-void StreamInQueryCacheTransform::transform(Chunk & chunk)
+void StreamInQueryCacheTransform::transform([[maybe_unused]] Chunk & chunk)
 {
-    cache_writer.buffer(chunk.clone());
+    // TODO reall need to clone the chunk??
+    switch (type)
+    {
+        case Type::Out:
+            query_cache_writer->buffer(chunk.clone());
+            break;
+        case Type::Totals:
+            query_cache_writer->bufferTotals(chunk.clone());
+            break;
+        case Type::Extremes:
+            query_cache_writer->bufferExtremes(chunk.clone());
+            break;
+
+    }
 }
 
 void StreamInQueryCacheTransform::finalizeWriteInQueryCache()
 {
     if (!isCancelled())
-        cache_writer.finalizeWrite();
+        query_cache_writer->finalizeWrite();
 }
 
 };

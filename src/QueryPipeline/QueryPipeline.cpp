@@ -576,13 +576,26 @@ bool QueryPipeline::tryGetResultRowsAndBytes(UInt64 & result_rows, UInt64 & resu
     return true;
 }
 
-void QueryPipeline::streamIntoQueryCache(std::shared_ptr<StreamInQueryCacheTransform> transform)
+void QueryPipeline::streamIntoQueryCache(std::shared_ptr<QueryCache::Writer> query_cache_writer)
 {
     assert(pulling());
 
-    connect(*output, transform->getInputPort());
-    output = &transform->getOutputPort();
-    processors->emplace_back(transform);
+    auto add_stream_in_query_cache_transform = [&](OutputPort *& out_port, StreamInQueryCacheTransform::Type type)
+    {
+        if (!out_port)
+            return;
+
+        auto transform = std::make_shared<StreamInQueryCacheTransform>(out_port->getHeader(), query_cache_writer, type);
+        connect(*out_port, transform->getInputPort());
+        out_port = &transform->getOutputPort();
+        processors->emplace_back(std::move(transform));
+    };
+
+    using enum StreamInQueryCacheTransform::Type;
+
+    add_stream_in_query_cache_transform(output, Out);
+    add_stream_in_query_cache_transform(totals, Totals);
+    add_stream_in_query_cache_transform(extremes, Extremes);
 }
 
 void QueryPipeline::finalizeWriteInQueryCache()
@@ -591,8 +604,8 @@ void QueryPipeline::finalizeWriteInQueryCache()
         processors->begin(), processors->end(),
         [](ProcessorPtr processor){ return dynamic_cast<StreamInQueryCacheTransform *>(&*processor); });
 
-    /// the pipeline should theoretically contain just one StreamInQueryCacheTransform
-
+    /// the pipeline can contain up to three StreamInQueryCacheTransforms. They all point to the same QueryCache::Writer,
+    /// so we can use any of them.
     if (it != processors->end())
         dynamic_cast<StreamInQueryCacheTransform &>(**it).finalizeWriteInQueryCache();
 }

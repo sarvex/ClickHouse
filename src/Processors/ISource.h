@@ -28,7 +28,9 @@ protected:
     virtual void progress(size_t read_rows, size_t read_bytes);
 
 public:
+
     explicit ISource(Block header, bool enable_auto_progress = true);
+
     ~ISource() override;
 
     Status prepare() override;
