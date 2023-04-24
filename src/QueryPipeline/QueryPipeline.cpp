@@ -580,7 +580,7 @@ void QueryPipeline::streamIntoQueryCache(std::shared_ptr<QueryCache::Writer> que
 {
     assert(pulling());
 
-    auto add_stream_in_query_cache_transform = [&](OutputPort *& out_port, StreamInQueryCacheTransform::Type type)
+    auto add_stream_in_query_cache_transform = [&](OutputPort *& out_port, QueryCache::Writer::Type type)
     {
         if (!out_port)
             return;
@@ -591,9 +591,9 @@ void QueryPipeline::streamIntoQueryCache(std::shared_ptr<QueryCache::Writer> que
         processors->emplace_back(std::move(transform));
     };
 
-    using enum StreamInQueryCacheTransform::Type;
+    using enum QueryCache::Writer::Type;
 
-    add_stream_in_query_cache_transform(output, Out);
+    add_stream_in_query_cache_transform(output, Result);
     add_stream_in_query_cache_transform(totals, Totals);
     add_stream_in_query_cache_transform(extremes, Extremes);
 }

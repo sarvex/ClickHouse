@@ -206,61 +206,50 @@ QueryCache::Writer::Writer(const Writer & other)
 {
 }
 
-void QueryCache::Writer::buffer(Chunk && partial_query_result_chunk)
+void QueryCache::Writer::buffer(Chunk && chunk, Type type)
 {
     if (skip_insert)
         return;
 
     std::lock_guard lock(mutex);
 
-    auto & chunks = query_result->chunks;
-
-    chunks.emplace_back(std::move(partial_query_result_chunk));
-
-    new_entry_size_in_bytes += chunks.back().allocatedBytes();
-    new_entry_size_in_rows += chunks.back().getNumRows();
-
-    if ((new_entry_size_in_bytes > max_entry_size_in_bytes) || (new_entry_size_in_rows > max_entry_size_in_rows))
+    switch (type)
     {
-        skip_insert = true;
-        LOG_TRACE(&Poco::Logger::get("QueryCache"), "Skipped insert (query result too big), new_entry_size_in_bytes: {} ({}), new_entry_size_in_rows: {} ({}), query: {}", new_entry_size_in_bytes, max_entry_size_in_bytes, new_entry_size_in_rows, max_entry_size_in_rows, key.queryStringFromAst());
+        case Type::Result:
+        {
+            /// Normal query result chunks are simply buffered. They are squashed and compressed later in finalizeWrite().
+            auto & buffered_chunks = query_result->chunks;
+
+            buffered_chunks.emplace_back(std::move(chunk));
+
+            new_entry_size_in_bytes += buffered_chunks.back().allocatedBytes();
+            new_entry_size_in_rows += buffered_chunks.back().getNumRows();
+            break;
+        }
+        case Type::Totals:
+        case Type::Extremes:
+        {
+            /// For simplicity, totals and extremes chunks are immediately squashed (only few such chunks are expected).
+            auto & buffered_chunk = (type == Type::Totals) ? query_result->totals : query_result->extremes;
+
+            convertToFullIfSparse(chunk);
+
+            if (!buffered_chunk.has_value())
+                buffered_chunk = std::move(chunk);
+            else
+            {
+                /// append() may change the size non-continuously
+                new_entry_size_in_bytes -= buffered_chunk->allocatedBytes();
+                new_entry_size_in_rows -= buffered_chunk->getNumRows();
+
+                buffered_chunk->append(chunk);
+            }
+
+            new_entry_size_in_bytes += buffered_chunk->allocatedBytes();
+            new_entry_size_in_rows += buffered_chunk->getNumRows();
+            break;
+        }
     }
-}
-
-void QueryCache::Writer::bufferTotals(Chunk && partial_totals_chunk)
-{
-    std::lock_guard lock(mutex);
-
-    convertToFullIfSparse(partial_totals_chunk);
-
-    if (!query_result->totals.has_value())
-        query_result->totals = std::move(partial_totals_chunk);
-    else
-        query_result->totals->append(partial_totals_chunk);
-
-    new_entry_size_in_bytes += partial_totals_chunk.allocatedBytes();
-    new_entry_size_in_rows += partial_totals_chunk.getNumRows();
-
-    if ((new_entry_size_in_bytes > max_entry_size_in_bytes) || (new_entry_size_in_rows > max_entry_size_in_rows))
-    {
-        skip_insert = true;
-        LOG_TRACE(&Poco::Logger::get("QueryCache"), "Skipped insert (query result too big), new_entry_size_in_bytes: {} ({}), new_entry_size_in_rows: {} ({}), query: {}", new_entry_size_in_bytes, max_entry_size_in_bytes, new_entry_size_in_rows, max_entry_size_in_rows, key.queryStringFromAst());
-    }
-}
-
-void QueryCache::Writer::bufferExtremes(Chunk && partial_extremes_chunk)
-{
-    std::lock_guard lock(mutex);
-
-    convertToFullIfSparse(partial_extremes_chunk);
-
-    if (!query_result->extremes.has_value())
-        query_result->extremes = std::move(partial_extremes_chunk);
-    else
-        query_result->extremes->append(partial_extremes_chunk);
-
-    new_entry_size_in_bytes += partial_extremes_chunk.allocatedBytes();
-    new_entry_size_in_rows += partial_extremes_chunk.getNumRows();
 
     if ((new_entry_size_in_bytes > max_entry_size_in_bytes) || (new_entry_size_in_rows > max_entry_size_in_rows))
     {
@@ -425,29 +414,7 @@ QueryCache::Reader::Reader(Cache & cache_, const Key & key, const std::lock_guar
             decompressed_chunks.push_back(std::move(decompressed_chunk));
         }
 
-        /// std::optional<Chunk> totals;
-        /// for (const auto & c : decompressed_chunks)
-        /// {
-        ///     if (!c.empty())
-        ///     {
-        ///         // for test purposes, clone the 1st non-empty chunk of the result
-        ///         totals = c.clone();
-        ///         break;
-        ///     }
-        /// }
-
-        /// std::optional<Chunk> extremes;
-        /// for (const auto & c : decompressed_chunks)
-        /// {
-        ///     if (!c.empty())
-        ///     {
-        ///         extremes = c.clone();
-        ///         break;
-        ///     }
-        /// }
-
         buildPipe(entry->key.header, std::move(decompressed_chunks), entry->mapped->totals, entry->mapped->extremes);
-        /// buildPipe(entry->key.header, std::move(decompressed_chunks), totals, extremes);
     }
 
     LOG_TRACE(&Poco::Logger::get("QueryCache"), "Entry found for query {}", key.queryStringFromAst());

@@ -111,13 +111,13 @@ public:
     class Writer
     {
     public:
-        void buffer(Chunk && partial_query_result_chunk);
-        void bufferTotals(Chunk && partial_totals_chunk);
-        void bufferExtremes(Chunk && partial_extremes_chunk);
-        void finalizeWrite();
 
         Writer(const Writer & other);
 
+        enum class Type {Result, Totals, Extremes};
+        void buffer(Chunk && chunk, Type type);
+
+        void finalizeWrite();
     private:
         std::mutex mutex;
         Cache & cache;

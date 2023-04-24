@@ -13,8 +13,8 @@
 
 #include <QueryPipeline/BlockIO.h>
 #include <Processors/Transforms/CountingTransform.h>
-#include <Processors/Transforms/StreamInQueryCacheTransform.h>
 #include <Processors/Transforms/getSourceFromASTInsertQuery.h>
+#include <Processors/Transforms/StreamInQueryCacheTransform.h>
 
 #include <Parsers/ASTIdentifier.h>
 #include <Parsers/ASTInsertQuery.h>
@@ -755,14 +755,6 @@ static std::tuple<ASTPtr, BlockIO> executeQueryImpl(
                     const size_t num_query_runs = query_cache->recordQueryRun(key);
                     if (num_query_runs > settings.query_cache_min_query_runs)
                     {
-                        /// QueryCache::Writer query_cache_writer = query_cache->createWriter(
-                        ///                  key,
-                        ///                  std::chrono::milliseconds(settings.query_cache_min_query_duration.totalMilliseconds()),
-                        ///                  settings.query_cache_squash_partial_results,
-                        ///                  settings.max_block_size);
-                        /// auto query_cache_writer_ptr = std::shared_ptr<QueryCache::Writer>(std::move(query_cache_writer));
-                        /// res.pipeline.streamIntoQueryCache(query_cache_writer_ptr);
-
                         auto query_cache_writer = std::make_shared<QueryCache::Writer>(query_cache->createWriter(
                                          key,
                                          std::chrono::milliseconds(settings.query_cache_min_query_duration.totalMilliseconds()),

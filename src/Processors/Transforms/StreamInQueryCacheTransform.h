@@ -9,12 +9,10 @@ namespace DB
 class StreamInQueryCacheTransform : public ISimpleTransform
 {
 public:
-    enum class Type {Out, Totals, Extremes};
-
     StreamInQueryCacheTransform(
         const Block & header_,
         std::shared_ptr<QueryCache::Writer> query_cache_writer,
-        Type type);
+        QueryCache::Writer::Type type);
 
 protected:
     void transform(Chunk & chunk) override;
@@ -24,8 +22,8 @@ public:
     String getName() const override { return "StreamInQueryCacheTransform"; }
 
 private:
-    std::shared_ptr<QueryCache::Writer> query_cache_writer;
-    Type type;
+    const std::shared_ptr<QueryCache::Writer> query_cache_writer;
+    const QueryCache::Writer::Type type;
 };
 
 }

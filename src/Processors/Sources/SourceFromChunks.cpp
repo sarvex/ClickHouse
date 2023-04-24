@@ -37,15 +37,8 @@ SourceFromChunks::Status SourceFromChunks::prepare()
 
     if (getTotalsPort())
     {
-        /// if (getTotalsPort()->isFinished())
-        ///     return Status::Finished;
-
-        /// if (!getTotalsPort()->canPush())
-        ///     return Status::PortFull;
-
-        /// chassert(!getTotalsPort()->isFinished());
-        /// chassert(getTotalsPort()->canPush());
-
+        /// This logic force-pushes the data into the port instead of checking the port status first (isFinished(), canPush()). Seems to
+        /// work but should be improved (TODO).
         chassert(chunk_totals.has_value());
         output_totals->push(std::move(*chunk_totals));
         output_totals->finish();
@@ -53,12 +46,6 @@ SourceFromChunks::Status SourceFromChunks::prepare()
 
     if (getExtremesPort())
     {
-        /// if (!getExtremesPort()->canPush())
-        ///     return Status::PortFull;
-
-        /// chassert(!getExtremesPort()->isFinished());
-        /// chassert(getExtremesPort()->canPush());
-
         chassert(chunk_extremes.has_value());
         output_extremes->push(std::move(*chunk_extremes));
         output_extremes->finish();

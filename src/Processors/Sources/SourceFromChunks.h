@@ -8,9 +8,6 @@ namespace DB
 {
 
 /// The big brother of SourceFromSingleChunk. Supports multiple chunks and totals/extremes.
-/// TODO Consider deriving directly from IProcessor, only Query Cache will use it and we can simplify logic ...
-/// TODO Consider squashing transform instead of custom squashing during write
-/// TODO make sure we never emit empty chunks otherwise processing stops :-(
 class SourceFromChunks : public ISource
 {
 public:
