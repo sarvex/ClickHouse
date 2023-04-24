@@ -7,7 +7,7 @@ from typing import List, Literal, Optional, Union
 import logging
 
 from github import Github
-from github.GithubObject import _NotSetType
+from github.GithubObject import _NotSetType, NotSet  # type: ignore
 from github.Commit import Commit
 from github.CommitStatus import CommitStatus
 from github.IssueComment import IssueComment
@@ -22,8 +22,6 @@ CommitStatuses = List[CommitStatus]
 MERGEABLE_NAME = "Mergeable Check"
 GH_REPO = None  # type: Optional[Repository]
 CI_STATUS_NAME = "CI running"
-
-NotSet = _NotSetType()
 
 
 class RerunHelper:
