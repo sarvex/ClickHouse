@@ -31,19 +31,7 @@ from upload_result_helper import upload_results
 def get_run_command(
     build_path, result_folder, repo_tests_path, server_log_folder, image
 ):
-    cmd = (
-        "docker run --cap-add=SYS_PTRACE "
-        # a static link, don't use S3_URL or S3_DOWNLOAD
-        "-e S3_URL='https://s3.amazonaws.com/clickhouse-datasets' "
-        # For dmesg and sysctl
-        "--privileged "
-        f"--volume={build_path}:/package_folder "
-        f"--volume={result_folder}:/test_output "
-        f"--volume={repo_tests_path}:/usr/share/clickhouse-test "
-        f"--volume={server_log_folder}:/var/log/clickhouse-server {image} "
-    )
-
-    return cmd
+    return f"docker run --cap-add=SYS_PTRACE -e S3_URL='https://s3.amazonaws.com/clickhouse-datasets' --privileged --volume={build_path}:/package_folder --volume={result_folder}:/test_output --volume={repo_tests_path}:/usr/share/clickhouse-test --volume={server_log_folder}:/var/log/clickhouse-server {image} "
 
 
 def process_results(
@@ -68,7 +56,7 @@ def process_results(
             for f in os.listdir(server_log_path)
             if os.path.isfile(os.path.join(server_log_path, f))
         ]
-        additional_files = additional_files + [
+        additional_files += [
             os.path.join(server_log_path, f) for f in server_log_files
         ]
 

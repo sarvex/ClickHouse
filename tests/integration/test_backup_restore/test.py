@@ -23,13 +23,9 @@ def started_cluster():
             "CREATE TABLE test.tbl (p Date, k Int8) ENGINE = MergeTree PARTITION BY toYYYYMM(p) ORDER BY p"
         )
         for i in range(1, 4):
-            instance.query(
-                "INSERT INTO test.tbl (p, k) VALUES(toDate({}), {})".format(i, i)
-            )
+            instance.query(f"INSERT INTO test.tbl (p, k) VALUES(toDate({i}), {i})")
         for i in range(31, 34):
-            instance.query(
-                "INSERT INTO test.tbl (p, k) VALUES(toDate({}), {})".format(i, i)
-            )
+            instance.query(f"INSERT INTO test.tbl (p, k) VALUES(toDate({i}), {i})")
 
         expected = TSV(
             "1970-01-02\t1\n1970-01-03\t2\n1970-01-04\t3\n1970-02-01\t31\n1970-02-02\t32\n1970-02-03\t33"
@@ -91,13 +87,9 @@ def test_restore(started_cluster):
 def test_attach_partition(started_cluster):
     instance.query("CREATE TABLE test.tbl2 AS test.tbl")
     for i in range(3, 5):
-        instance.query(
-            "INSERT INTO test.tbl2(p, k) VALUES(toDate({}), {})".format(i, i)
-        )
+        instance.query(f"INSERT INTO test.tbl2(p, k) VALUES(toDate({i}), {i})")
     for i in range(33, 35):
-        instance.query(
-            "INSERT INTO test.tbl2(p, k) VALUES(toDate({}), {})".format(i, i)
-        )
+        instance.query(f"INSERT INTO test.tbl2(p, k) VALUES(toDate({i}), {i})")
 
     expected = TSV("1970-01-04\t3\n1970-01-05\t4\n1970-02-03\t33\n1970-02-04\t34")
     res = instance.query("SELECT * FROM test.tbl2 ORDER BY p")
@@ -134,13 +126,9 @@ def test_attach_partition(started_cluster):
 def test_replace_partition(started_cluster):
     instance.query("CREATE TABLE test.tbl3 AS test.tbl")
     for i in range(3, 5):
-        instance.query(
-            "INSERT INTO test.tbl3(p, k) VALUES(toDate({}), {})".format(i, i)
-        )
+        instance.query(f"INSERT INTO test.tbl3(p, k) VALUES(toDate({i}), {i})")
     for i in range(33, 35):
-        instance.query(
-            "INSERT INTO test.tbl3(p, k) VALUES(toDate({}), {})".format(i, i)
-        )
+        instance.query(f"INSERT INTO test.tbl3(p, k) VALUES(toDate({i}), {i})")
 
     expected = TSV("1970-01-04\t3\n1970-01-05\t4\n1970-02-03\t33\n1970-02-04\t34")
     res = instance.query("SELECT * FROM test.tbl3 ORDER BY p")
@@ -183,15 +171,18 @@ def test_freeze_in_memory(started_cluster):
     fp_backup = get_last_backup_path(
         started_cluster.instances["node"], "test", "t_in_memory"
     )
-    part_path = fp_backup + "/all_1_1_0/"
+    part_path = f"{fp_backup}/all_1_1_0/"
 
     assert TSV(
         instance.query(
             "SELECT part_type, is_frozen FROM system.parts WHERE database = 'test' AND table = 't_in_memory'"
         )
     ) == TSV("InMemory\t1\n")
-    instance.exec_in_container(["test", "-f", part_path + "/data.bin"])
-    assert instance.exec_in_container(["cat", part_path + "/count.txt"]).strip() == "1"
+    instance.exec_in_container(["test", "-f", f"{part_path}/data.bin"])
+    assert (
+        instance.exec_in_container(["cat", f"{part_path}/count.txt"]).strip()
+        == "1"
+    )
 
     instance.query(
         "CREATE TABLE test.t_in_memory_2(a UInt32, s String) ENGINE = MergeTree ORDER BY a"

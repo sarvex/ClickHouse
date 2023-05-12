@@ -144,7 +144,7 @@ def main():
             description = desc_f.readline().rstrip("\n")
     except:
         status = "failure"
-        description = "Task failed: $?=" + str(retcode)
+        description = f"Task failed: $?={str(retcode)}"
 
     description = format_description(description)
 

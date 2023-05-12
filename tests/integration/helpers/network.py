@@ -85,7 +85,7 @@ class PartitionManager:
     @staticmethod
     def _check_instance(instance):
         if instance.ip_address is None:
-            raise Exception("Instance + " + instance.name + " is not launched!")
+            raise Exception(f"Instance + {instance.name} is not launched!")
 
     def _add_rule(self, rule):
         _NetworkManager.get().add_iptables_rule(**rule)
@@ -97,11 +97,7 @@ class PartitionManager:
 
     def _add_tc_netem_delay(self, instance, delay_ms):
         instance.exec_in_container(
-            [
-                "bash",
-                "-c",
-                "tc qdisc add dev eth0 root netem delay {}ms".format(delay_ms),
-            ],
+            ["bash", "-c", f"tc qdisc add dev eth0 root netem delay {delay_ms}ms"],
             user="root",
         )
         self._netem_delayed_instances.append(instance)
@@ -160,16 +156,13 @@ class _NetworkManager:
     @staticmethod
     def clean_all_user_iptables_rules():
         for i in range(1000):
-            iptables_iter = i
             # when rules will be empty, it will return error
             res = subprocess.run("iptables --wait -D DOCKER-USER 1", shell=True)
 
+            iptables_iter = i
             if res.returncode != 0:
                 logging.info(
-                    "All iptables rules cleared, "
-                    + str(iptables_iter)
-                    + " iterations, last error: "
-                    + str(res.stderr)
+                    f"All iptables rules cleared, {str(iptables_iter)} iterations, last error: {str(res.stderr)}"
                 )
                 return
 
@@ -240,10 +233,7 @@ class _NetworkManager:
                     except docker.errors.NotFound:
                         break
                     except Exception as ex:
-                        print(
-                            "Error removing network blocade container, will try again",
-                            str(ex),
-                        )
+                        print("Error removing network blocade container, will try again", ex)
                         time.sleep(i)
 
             image = subprocess.check_output(
@@ -267,10 +257,12 @@ class _NetworkManager:
             self._container = self._docker_client.containers.run(
                 "clickhouse/integration-helper",
                 auto_remove=True,
-                command=("sleep %s" % self.container_exit_timeout),
-                # /run/xtables.lock passed inside for correct iptables --wait
+                command=f"sleep {self.container_exit_timeout}",
                 volumes={
-                    "/run/xtables.lock": {"bind": "/run/xtables.lock", "mode": "ro"}
+                    "/run/xtables.lock": {
+                        "bind": "/run/xtables.lock",
+                        "mode": "ro",
+                    }
                 },
                 detach=True,
                 network_mode="host",
@@ -281,7 +273,7 @@ class _NetworkManager:
         return self._container
 
     def _exec_run_with_retry(self, cmd, retry_count, **kwargs):
-        for i in range(retry_count):
+        for _ in range(retry_count):
             try:
                 self._exec_run(cmd, **kwargs)
             except subprocess.CalledProcessError as e:

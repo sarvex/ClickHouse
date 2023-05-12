@@ -33,24 +33,18 @@ class ExternalSource(object):
 
     def get_source_str(self, table_name):
         raise NotImplementedError(
-            "Method {} is not implemented for {}".format(
-                "get_source_config_part", self.__class__.__name__
-            )
+            f"Method get_source_config_part is not implemented for {self.__class__.__name__}"
         )
 
     def prepare(self, structure, table_name, cluster):
         raise NotImplementedError(
-            "Method {} is not implemented for {}".format(
-                "prepare_remote_source", self.__class__.__name__
-            )
+            f"Method prepare_remote_source is not implemented for {self.__class__.__name__}"
         )
 
     # data is banch of Row
     def load_data(self, data):
         raise NotImplementedError(
-            "Method {} is not implemented for {}".format(
-                "prepare_remote_source", self.__class__.__name__
-            )
+            f"Method prepare_remote_source is not implemented for {self.__class__.__name__}"
         )
 
     def compatible_with_layout(self, layout):
@@ -125,12 +119,13 @@ class SourceMySQL(ExternalSource):
         self.execute_mysql_query(
             "create database if not exists test default character set 'utf8'"
         )
-        self.execute_mysql_query("drop table if exists test.{}".format(table_name))
-        fields_strs = []
-        for field in (
-            structure.keys + structure.ordinary_fields + structure.range_fields
-        ):
-            fields_strs.append(field.name + " " + self.TYPE_MAPPING[field.field_type])
+        self.execute_mysql_query(f"drop table if exists test.{table_name}")
+        fields_strs = [
+            f"{field.name} {self.TYPE_MAPPING[field.field_type]}"
+            for field in (
+                structure.keys + structure.ordinary_fields + structure.range_fields
+            )
+        ]
         create_query = """create table test.{table_name} (
             {fields_str});
         """.format(
@@ -148,15 +143,10 @@ class SourceMySQL(ExternalSource):
             sorted_row = []
             for name in self.ordered_names:
                 data = row.data[name]
-                if isinstance(row.data[name], str):
-                    data = "'" + data + "'"
-                else:
-                    data = str(data)
+                data = f"'{data}'" if isinstance(row.data[name], str) else str(data)
                 sorted_row.append(data)
             values_strs.append("(" + ",".join(sorted_row) + ")")
-        query = "insert into test.{} ({}) values {}".format(
-            table_name, ",".join(self.ordered_names), ",".join(values_strs)
-        )
+        query = f'insert into test.{table_name} ({",".join(self.ordered_names)}) values {",".join(values_strs)}'
         self.execute_mysql_query(query)
 
 
@@ -238,9 +228,10 @@ class SourceMongo(ExternalSource):
 
         to_insert = []
         for row in data:
-            row_dict = {}
-            for cell_name, cell_value in list(row.data.items()):
-                row_dict[cell_name] = self.converters[cell_name](cell_value)
+            row_dict = {
+                cell_name: self.converters[cell_name](cell_value)
+                for cell_name, cell_value in list(row.data.items())
+            }
             to_insert.append(row_dict)
 
         result = tbl.insert_many(to_insert)
@@ -290,11 +281,12 @@ class SourceClickHouse(ExternalSource):
     def prepare(self, structure, table_name, cluster):
         self.node = cluster.instances[self.docker_hostname]
         self.node.query("CREATE DATABASE IF NOT EXISTS test")
-        fields_strs = []
-        for field in (
-            structure.keys + structure.ordinary_fields + structure.range_fields
-        ):
-            fields_strs.append(field.name + " " + field.field_type)
+        fields_strs = [
+            f"{field.name} {field.field_type}"
+            for field in (
+                structure.keys + structure.ordinary_fields + structure.range_fields
+            )
+        ]
         create_query = """CREATE TABLE test.{table_name} (
             {fields_str}) ENGINE MergeTree ORDER BY tuple();
         """.format(
@@ -312,21 +304,16 @@ class SourceClickHouse(ExternalSource):
             sorted_row = []
             for name in self.ordered_names:
                 row_data = row.data[name]
-                if isinstance(row_data, str):
-                    row_data = "'" + row_data + "'"
-                else:
-                    row_data = str(row_data)
+                row_data = f"'{row_data}'" if isinstance(row_data, str) else str(row_data)
                 sorted_row.append(row_data)
             values_strs.append("(" + ",".join(sorted_row) + ")")
-        query = "INSERT INTO test.{} ({}) values {}".format(
-            table_name, ",".join(self.ordered_names), ",".join(values_strs)
-        )
+        query = f'INSERT INTO test.{table_name} ({",".join(self.ordered_names)}) values {",".join(values_strs)}'
         self.node.query(query)
 
 
 class SourceFile(ExternalSource):
     def get_source_str(self, table_name):
-        table_path = "/" + table_name + ".tsv"
+        table_path = f"/{table_name}.tsv"
         return """
             <file>
                 <path>{path}</path>
@@ -338,22 +325,17 @@ class SourceFile(ExternalSource):
 
     def prepare(self, structure, table_name, cluster):
         self.node = cluster.instances[self.docker_hostname]
-        path = "/" + table_name + ".tsv"
-        self.node.exec_in_container(
-            ["bash", "-c", "touch {}".format(path)], user="root"
-        )
+        path = f"/{table_name}.tsv"
+        self.node.exec_in_container(["bash", "-c", f"touch {path}"], user="root")
         self.ordered_names = structure.get_ordered_names()
         self.prepared = True
 
     def load_data(self, data, table_name):
         if not data:
             return
-        path = "/" + table_name + ".tsv"
+        path = f"/{table_name}.tsv"
         for row in list(data):
-            sorted_row = []
-            for name in self.ordered_names:
-                sorted_row.append(str(row.data[name]))
-
+            sorted_row = [str(row.data[name]) for name in self.ordered_names]
             str_data = "\t".join(sorted_row)
             self.node.exec_in_container(
                 [
@@ -371,13 +353,11 @@ class SourceFile(ExternalSource):
 class _SourceExecutableBase(ExternalSource):
     def _get_cmd(self, path):
         raise NotImplementedError(
-            "Method {} is not implemented for {}".format(
-                "_get_cmd", self.__class__.__name__
-            )
+            f"Method _get_cmd is not implemented for {self.__class__.__name__}"
         )
 
     def get_source_str(self, table_name):
-        table_path = "/" + table_name + ".tsv"
+        table_path = f"/{table_name}.tsv"
         return """
             <executable>
                 <command>{cmd}</command>
@@ -389,22 +369,17 @@ class _SourceExecutableBase(ExternalSource):
 
     def prepare(self, structure, table_name, cluster):
         self.node = cluster.instances[self.docker_hostname]
-        path = "/" + table_name + ".tsv"
-        self.node.exec_in_container(
-            ["bash", "-c", "touch {}".format(path)], user="root"
-        )
+        path = f"/{table_name}.tsv"
+        self.node.exec_in_container(["bash", "-c", f"touch {path}"], user="root")
         self.ordered_names = structure.get_ordered_names()
         self.prepared = True
 
     def load_data(self, data, table_name):
         if not data:
             return
-        path = "/" + table_name + ".tsv"
+        path = f"/{table_name}.tsv"
         for row in list(data):
-            sorted_row = []
-            for name in self.ordered_names:
-                sorted_row.append(str(row.data[name]))
-
+            sorted_row = [str(row.data[name]) for name in self.ordered_names]
             str_data = "\t".join(sorted_row)
             self.node.exec_in_container(
                 [
@@ -418,7 +393,7 @@ class _SourceExecutableBase(ExternalSource):
 
 class SourceExecutableHashed(_SourceExecutableBase):
     def _get_cmd(self, path):
-        return "cat {}".format(path)
+        return f"cat {path}"
 
     def compatible_with_layout(self, layout):
         return "hashed" in layout.name
@@ -426,7 +401,7 @@ class SourceExecutableHashed(_SourceExecutableBase):
 
 class SourceExecutableCache(_SourceExecutableBase):
     def _get_cmd(self, path):
-        return "cat - >/dev/null;cat {}".format(path)
+        return f"cat - >/dev/null;cat {path}"
 
     def compatible_with_layout(self, layout):
         return "cache" in layout.name
@@ -462,10 +437,8 @@ class SourceHTTPBase(ExternalSource):
 
     def prepare(self, structure, table_name, cluster):
         self.node = cluster.instances[self.docker_hostname]
-        path = "/" + table_name + ".tsv"
-        self.node.exec_in_container(
-            ["bash", "-c", "touch {}".format(path)], user="root"
-        )
+        path = f"/{table_name}.tsv"
+        self.node.exec_in_container(["bash", "-c", f"touch {path}"], user="root")
 
         script_dir = os.path.dirname(os.path.realpath(__file__))
         self.node.copy_file_to_container(
@@ -493,12 +466,9 @@ class SourceHTTPBase(ExternalSource):
     def load_data(self, data, table_name):
         if not data:
             return
-        path = "/" + table_name + ".tsv"
+        path = f"/{table_name}.tsv"
         for row in list(data):
-            sorted_row = []
-            for name in self.ordered_names:
-                sorted_row.append(str(row.data[name]))
-
+            sorted_row = [str(row.data[name]) for name in self.ordered_names]
             str_data = "\t".join(sorted_row)
             self.node.exec_in_container(
                 [
@@ -558,7 +528,7 @@ class SourceCassandra(ExternalSource):
             user,
             password,
         )
-        self.structure = dict()
+        self.structure = {}
 
     def get_source_str(self, table_name):
         return """
@@ -587,13 +557,13 @@ class SourceCassandra(ExternalSource):
         self.session.execute(
             "create keyspace if not exists test with replication = {'class': 'SimpleStrategy', 'replication_factor' : 1};"
         )
-        self.session.execute('drop table if exists test."{}"'.format(table_name))
+        self.session.execute(f'drop table if exists test."{table_name}"')
         self.structure[table_name] = structure
         columns = [
-            '"' + col.name + '" ' + self.TYPE_MAPPING[col.field_type]
+            f'"{col.name}" {self.TYPE_MAPPING[col.field_type]}'
             for col in structure.get_all_fields()
         ]
-        keys = ['"' + col.name + '"' for col in structure.keys]
+        keys = [f'"{col.name}"' for col in structure.keys]
         query = 'create table test."{name}" ({columns}, primary key ({pk}));'.format(
             name=table_name, columns=", ".join(columns), pk=", ".join(keys)
         )
@@ -612,7 +582,7 @@ class SourceCassandra(ExternalSource):
             (field.name, field.field_type)
             for field in self.structure[table_name].get_all_fields()
         ]
-        columns = ['"' + col[0] + '"' for col in names_and_types]
+        columns = [f'"{col[0]}"' for col in names_and_types]
         insert = 'insert into test."{table}" ({columns}) values ({args})'.format(
             table=table_name,
             columns=",".join(columns),
@@ -681,9 +651,7 @@ class SourceRedis(ExternalSource):
     def load_data(self, data, table_name):
         self.client.flushdb()
         for row in list(data):
-            values = []
-            for name in self.ordered_names:
-                values.append(str(row.data[name]))
+            values = [str(row.data[name]) for name in self.ordered_names]
             if len(values) == 2:
                 self.client.set(*values)
             else:

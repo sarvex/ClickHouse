@@ -242,33 +242,24 @@ def tsvRows(n):
         with open(n, encoding="utf-8") as fd:
             result = []
             for row in csv.reader(fd, delimiter="\t", quoting=csv.QUOTE_NONE):
-                new_row = []
-                for e in row:
-                    # The first one .encode('utf-8').decode('unicode-escape') decodes the escape characters from the strings.
-                    # The second one (encode('latin1').decode('utf-8')) fixes the changes with unicode vs utf-8 chars, so
-                    # 'Ð§ÐµÐ¼ Ð·Ð�Ð½Ð¸Ð¼Ð°ÐµÑ�Ð¬Ñ�Ñ�' is transformed back into 'Чем зАнимаешЬся'.
-
-                    new_row.append(
-                        e.encode("utf-8")
-                        .decode("unicode-escape")
-                        .encode("latin1")
-                        .decode("utf-8")
-                    )
+                new_row = [
+                    e.encode("utf-8")
+                    .decode("unicode-escape")
+                    .encode("latin1")
+                    .decode("utf-8")
+                    for e in row
+                ]
                 result.append(new_row)
         return result
 
     except:
         report_errors.append(traceback.format_exception_only(*sys.exc_info()[:2])[-1])
-        pass
     return []
 
 
 def htmlRows(n):
     rawRows = tsvRows(n)
-    result = ""
-    for row in rawRows:
-        result += tableRow(row)
-    return result
+    return "".join(tableRow(row) for row in rawRows)
 
 
 def addSimpleTable(caption, columns, rows, pos=None):
@@ -293,7 +284,7 @@ def add_tested_commits():
             ["Old", "New"],
             [
                 [
-                    "<pre>{}</pre>".format(x)
+                    f"<pre>{x}</pre>"
                     for x in [
                         open("left-commit.txt").read(),
                         open("right-commit.txt").read(),
@@ -304,7 +295,6 @@ def add_tested_commits():
     except:
         # Don't fail if no commit info -- maybe it's a manual run.
         report_errors.append(traceback.format_exception_only(*sys.exc_info()[:2])[-1])
-        pass
 
 
 def add_report_errors():
@@ -315,8 +305,6 @@ def add_report_errors():
         report_errors += [l.strip() for l in open("report/errors.log")]
     except:
         report_errors.append(traceback.format_exception_only(*sys.exc_info()[:2])[-1])
-        pass
-
     if not report_errors:
         return
 
@@ -387,7 +375,7 @@ if args.report == "main":
         text = tableStart("Backward-incompatible queries")
         columns = ["Median time, s", "Relative time variance", "Test", "#", "Query"]
         text += tableHeader(columns)
-        attrs = ["" for c in columns]
+        attrs = ["" for _ in columns]
         for row in rows:
             anchor = f"{currentTableAnchor()}.{row[2]}.{row[3]}"
             if float(row[1]) > 0.10:
@@ -435,7 +423,7 @@ if args.report == "main":
             "#",  # 7
             "Query",  # 8
         ]
-        attrs = ["" for c in columns]
+        attrs = ["" for _ in columns]
         attrs[5] = None
 
         text += tableHeader(columns, attrs)
@@ -483,7 +471,7 @@ if args.report == "main":
             "#",  # 6
             "Query",  # 7
         ]
-        attrs = ["" for c in columns]
+        attrs = ["" for _ in columns]
         attrs[4] = None
 
         text = tableStart("Unstable Queries")
@@ -542,7 +530,7 @@ if args.report == "main":
             "Shortest query, total for measured runs,&nbsp;s",  # 6
             "",  # Runs                                               #7
         ]
-        attrs = ["" for c in columns]
+        attrs = ["" for _ in columns]
         attrs[7] = None
 
         text = tableStart("Test Times")
@@ -691,7 +679,7 @@ elif args.report == "all-queries":
             "#",  # 8
             "Query",  # 9
         ]
-        attrs = ["" for c in columns]
+        attrs = ["" for _ in columns]
         attrs[0] = None
         attrs[1] = None
 
@@ -700,11 +688,7 @@ elif args.report == "all-queries":
 
         for r in rows:
             anchor = f"{currentTableAnchor()}.{r[7]}.{r[8]}"
-            if int(r[1]):
-                attrs[6] = f'style="background: {color_bad}"'
-            else:
-                attrs[6] = ""
-
+            attrs[6] = f'style="background: {color_bad}"' if int(r[1]) else ""
             if int(r[0]):
                 if float(r[5]) > 0.0:
                     attrs[4] = attrs[5] = f'style="background: {color_bad}"'

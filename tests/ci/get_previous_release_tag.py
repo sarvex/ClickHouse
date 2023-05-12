@@ -75,23 +75,19 @@ def find_previous_release(
 
 
 def get_previous_release(server_version: Optional[Version]) -> Optional[ReleaseInfo]:
-    page = 1
     found = False
+    page = 1
     while not found:
         response = requests.get(
             CLICKHOUSE_TAGS_URL, {"page": page, "per_page": 100}, timeout=10
         )
         if not response.ok:
-            raise Exception(
-                "Cannot load the list of tags from github: " + response.reason
-            )
+            raise Exception(f"Cannot load the list of tags from github: {response.reason}")
 
         releases_str = set(re.findall(VERSION_PATTERN, response.text))
-        if len(releases_str) == 0:
+        if not releases_str:
             raise Exception(
-                "Cannot find previous release for "
-                + str(server_version)
-                + " server version"
+                f"Cannot find previous release for {str(server_version)} server version"
             )
 
         releases = [ReleaseInfo(release) for release in releases_str]

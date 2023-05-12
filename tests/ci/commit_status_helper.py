@@ -34,20 +34,25 @@ class RerunHelper:
         self.statuses = get_commit_filtered_statuses(commit)
 
     def is_already_finished_by_status(self) -> bool:
-        # currently we agree even for failed statuses
-        for status in self.statuses:
-            if self.check_name in status.context and status.state in (
+        return any(
+            self.check_name in status.context
+            and status.state
+            in (
                 "success",
                 "failure",
-            ):
-                return True
-        return False
+            )
+            for status in self.statuses
+        )
 
     def get_finished_status(self) -> Optional[CommitStatus]:
-        for status in self.statuses:
-            if self.check_name in status.context:
-                return status
-        return None
+        return next(
+            (
+                status
+                for status in self.statuses
+                if self.check_name in status.context
+            ),
+            None,
+        )
 
 
 def override_status(status: str, check_name: str, invert: bool = False) -> str:
@@ -55,10 +60,7 @@ def override_status(status: str, check_name: str, invert: bool = False) -> str:
         return "success"
 
     if invert:
-        if status == "success":
-            return "error"
-        return "success"
-
+        return "error" if status == "success" else "success"
     return status
 
 
@@ -150,13 +152,15 @@ def set_status_comment(commit: Commit, pr_info: PRInfo) -> None:
         return
 
     comment_service_header = comment_body.split("\n", 1)[0]
-    comment = None  # type: Optional[IssueComment]
     pr = repo.get_pull(pr_info.number)
-    for ic in pr.get_issue_comments():
-        if ic.body.startswith(comment_service_header):
-            comment = ic
-            break
-
+    comment = next(
+        (
+            ic
+            for ic in pr.get_issue_comments()
+            if ic.body.startswith(comment_service_header)
+        ),
+        None,
+    )
     if comment is None:
         pr.create_issue_comment(comment_body)
         return
@@ -175,9 +179,7 @@ def generate_status_comment(pr_info: PRInfo, statuses: CommitStatuses) -> str:
             return f"🟢 {state}"
         if state == "pending":
             return f"🟡 {state}"
-        if state in ["error", "failure"]:
-            return f"🔴 {state}"
-        return state
+        return f"🔴 {state}" if state in {"error", "failure"} else state
 
     report_url = create_ci_report(pr_info, statuses)
     worst_state = get_worst_state(statuses)
@@ -245,9 +247,7 @@ def get_worst_state(statuses: CommitStatuses) -> str:
         if worst_status.state == "error":
             break
 
-    if worst_status is None:
-        return ""
-    return worst_status.state
+    return "" if worst_status is None else worst_status.state
 
 
 def create_ci_report(pr_info: PRInfo, statuses: CommitStatuses) -> str:
@@ -284,9 +284,10 @@ def get_commit_filtered_statuses(commit: Commit) -> CommitStatuses:
     1. context="second", state="success"
     2. context="first", stat="failure"
     """
-    filtered = {}
-    for status in sorted(commit.get_statuses(), key=lambda x: x.updated_at):
-        filtered[status.context] = status
+    filtered = {
+        status.context: status
+        for status in sorted(commit.get_statuses(), key=lambda x: x.updated_at)
+    }
     return list(filtered.values())
 
 
@@ -316,7 +317,7 @@ def post_labels(gh: Github, pr_info: PRInfo, labels_names: List[str]) -> None:
 
 def format_description(description: str) -> str:
     if len(description) > 140:
-        description = description[:137] + "..."
+        description = f"{description[:137]}..."
     return description
 
 
@@ -334,13 +335,12 @@ def set_mergeable_check(
 
 
 def update_mergeable_check(gh: Github, pr_info: PRInfo, check_name: str) -> None:
-    not_run = (
+    if not_run := (
         pr_info.labels.intersection({SKIP_MERGEABLE_CHECK_LABEL, "release"})
         or check_name not in REQUIRED_CHECKS
         or pr_info.release_pr
         or pr_info.number == 0
-    )
-    if not_run:
+    ):
         # Let's avoid unnecessary work
         return
 
@@ -353,12 +353,10 @@ def update_mergeable_check(gh: Github, pr_info: PRInfo, check_name: str) -> None
         status for status in statuses if status.context in REQUIRED_CHECKS
     ]
 
-    mergeable_status = None
-    for status in statuses:
-        if status.context == MERGEABLE_NAME:
-            mergeable_status = status
-            break
-
+    mergeable_status = next(
+        (status for status in statuses if status.context == MERGEABLE_NAME),
+        None,
+    )
     success = []
     fail = []
     for status in required_checks:

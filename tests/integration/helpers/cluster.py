@@ -178,14 +178,12 @@ def get_docker_compose_path():
     compose_path = os.environ.get("DOCKER_COMPOSE_DIR")
     if compose_path is not None:
         return os.path.dirname(compose_path)
-    else:
-        if os.path.exists(os.path.dirname("/compose/")):
-            return os.path.dirname("/compose/")  # default in docker runner container
-        else:
-            logging.debug(
-                f"Fallback docker_compose_path to LOCAL_DOCKER_COMPOSE_DIR: {LOCAL_DOCKER_COMPOSE_DIR}"
-            )
-            return LOCAL_DOCKER_COMPOSE_DIR
+    if os.path.exists(os.path.dirname("/compose/")):
+        return os.path.dirname("/compose/")  # default in docker runner container
+    logging.debug(
+        f"Fallback docker_compose_path to LOCAL_DOCKER_COMPOSE_DIR: {LOCAL_DOCKER_COMPOSE_DIR}"
+    )
+    return LOCAL_DOCKER_COMPOSE_DIR
 
 
 def check_kafka_is_available(kafka_id, kafka_port):
@@ -255,13 +253,12 @@ async def nats_connect_ssl(nats_port, user, password, ssl_ctx=None):
         ssl_ctx = ssl.create_default_context()
         ssl_ctx.check_hostname = False
         ssl_ctx.verify_mode = ssl.CERT_NONE
-    nc = await nats.connect(
-        "tls://localhost:{}".format(nats_port),
+    return await nats.connect(
+        f"tls://localhost:{nats_port}",
         user=user,
         password=password,
         tls=ssl_ctx,
     )
-    return nc
 
 
 def enable_consistent_hash_plugin(rabbitmq_id):
@@ -287,10 +284,10 @@ def get_instances_dir(name):
     run_id = os.environ.get("INTEGRATION_TESTS_RUN_ID", "")
 
     if name:
-        instances_dir_name += "_" + name
+        instances_dir_name += f"_{name}"
 
     if run_id:
-        instances_dir_name += "_" + shlex.quote(run_id)
+        instances_dir_name += f"_{shlex.quote(run_id)}"
 
     return instances_dir_name
 

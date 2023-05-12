@@ -47,12 +47,12 @@ class Repo:
 
     @url.setter
     def url(self, protocol: str) -> None:
-        if protocol == "ssh":
-            self._url = f"git@github.com:{self}.git"
-        elif protocol == "https":
+        if protocol == "https":
             self._url = f"https://github.com/{self}.git"
         elif protocol == "origin":
             self._url = protocol
+        elif protocol == "ssh":
+            self._url = f"git@github.com:{self}.git"
         else:
             raise Exception(f"protocol must be in {self.VALID}")
 
@@ -90,9 +90,7 @@ class Release:
     def run(
         self, cmd: str, cwd: Optional[str] = None, dry_run: bool = False, **kwargs: Any
     ) -> str:
-        cwd_text = ""
-        if cwd:
-            cwd_text = f" (CWD='{cwd}')"
+        cwd_text = f" (CWD='{cwd}')" if cwd else ""
         if dry_run:
             logging.info("Would run command%s:\n    %s", cwd_text, cmd)
             return ""
@@ -122,9 +120,7 @@ class Release:
         self.version = get_version_from_repo(git=self._git)
 
     def get_stable_release_type(self) -> str:
-        if self.version.minor % 5 == 3:  # our 3 and 8 are LTS
-            return VersionType.LTS
-        return VersionType.STABLE
+        return VersionType.LTS if self.version.minor % 5 == 3 else VersionType.STABLE
 
     def check_commit_release_ready(self):
         per_page = 100
@@ -142,7 +138,7 @@ class Release:
 
             for status in statuses:
                 if status["context"] == RELEASE_READY_STATUS:
-                    if not status["state"] == "success":
+                    if status["state"] != "success":
                         raise Exception(
                             f"the status {RELEASE_READY_STATUS} is {status['state']}"
                             ", not success"
@@ -235,8 +231,9 @@ class Release:
         self.log_rollback()
 
     def check_no_tags_after(self):
-        tags_after_commit = self.run(f"git tag --contains={self.release_commit}")
-        if tags_after_commit:
+        if tags_after_commit := self.run(
+            f"git tag --contains={self.release_commit}"
+        ):
             raise Exception(
                 f"Commit {self.release_commit} belongs to following tags:\n"
                 f"{tags_after_commit}\nChoose another commit"
@@ -393,9 +390,7 @@ class Release:
 
     @property
     def dry_run_prefix(self) -> str:
-        if self.dry_run:
-            return "# "
-        return ""
+        return "# " if self.dry_run else ""
 
     @contextmanager
     def _bump_release_branch(self):
@@ -507,9 +502,7 @@ class Release:
         with self._create_tag():
             # Preserve tag if version is changed
             tag = self.release_version.describe
-            prerelease = ""
-            if as_prerelease:
-                prerelease = "--prerelease"
+            prerelease = "--prerelease" if as_prerelease else ""
             self.run(
                 f"gh release create {prerelease} --repo {self.repo} "
                 f"--title 'Release {tag}' '{tag}'",
@@ -548,7 +541,7 @@ class Release:
     def _push(
         self, ref: str, with_rollback_on_fail: bool = True, remote_ref: str = ""
     ) -> Iterator[None]:
-        if remote_ref == "":
+        if not remote_ref:
             remote_ref = ref
 
         self.run(f"git push {self.repo.url} {ref}:{remote_ref}", dry_run=self.dry_run)

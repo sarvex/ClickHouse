@@ -38,9 +38,7 @@ def check_args_and_update_paths(args):
         else:
             CLICKHOUSE_ROOT = args.clickhouse_root
     else:
-        logging.info(
-            "ClickHouse root is not set. Will use %s" % (DEFAULT_CLICKHOUSE_ROOT)
-        )
+        logging.info(f"ClickHouse root is not set. Will use {DEFAULT_CLICKHOUSE_ROOT}")
         CLICKHOUSE_ROOT = DEFAULT_CLICKHOUSE_ROOT
 
     if not os.path.isabs(args.binary):
@@ -73,9 +71,7 @@ def check_args_and_update_paths(args):
         args.base_configs_dir = os.path.abspath(
             os.path.join(CLICKHOUSE_ROOT, CONFIG_DIR_IN_REPO)
         )
-        logging.info(
-            "Base configs dir is not set. Will use %s" % (args.base_configs_dir)
-        )
+        logging.info(f"Base configs dir is not set. Will use {args.base_configs_dir}")
 
     if args.cases_dir:
         if not os.path.isabs(args.cases_dir):
@@ -86,19 +82,17 @@ def check_args_and_update_paths(args):
         args.cases_dir = os.path.abspath(
             os.path.join(CLICKHOUSE_ROOT, INTEGRATION_DIR_IN_REPO)
         )
-        logging.info("Cases dir is not set. Will use %s" % (args.cases_dir))
+        logging.info(f"Cases dir is not set. Will use {args.cases_dir}")
 
     if args.src_dir:
         if not os.path.isabs(args.src_dir):
             args.src_dir = os.path.abspath(os.path.join(CURRENT_WORK_DIR, args.src_dir))
     else:
         args.src_dir = os.path.abspath(os.path.join(CLICKHOUSE_ROOT, SRC_DIR_IN_REPO))
-        logging.info("src dir is not set. Will use %s" % (args.src_dir))
+        logging.info(f"src dir is not set. Will use {args.src_dir}")
 
     logging.info(
-        "base_configs_dir: {}, binary: {}, cases_dir: {} ".format(
-            args.base_configs_dir, args.binary, args.cases_dir
-        )
+        f"base_configs_dir: {args.base_configs_dir}, binary: {args.binary}, cases_dir: {args.cases_dir} "
     )
 
     for path in [
@@ -110,27 +104,22 @@ def check_args_and_update_paths(args):
         CLICKHOUSE_ROOT,
     ]:
         if not os.path.exists(path):
-            raise Exception("Path {} doesn't exist".format(path))
+            raise Exception(f"Path {path} doesn't exist")
 
-    if args.dockerd_volume:
-        if not os.path.isabs(args.dockerd_volume):
-            args.src_dir = os.path.abspath(
-                os.path.join(CURRENT_WORK_DIR, args.dockerd_volume)
-            )
+    if args.dockerd_volume and not os.path.isabs(args.dockerd_volume):
+        args.src_dir = os.path.abspath(
+            os.path.join(CURRENT_WORK_DIR, args.dockerd_volume)
+        )
 
     if (not os.path.exists(os.path.join(args.base_configs_dir, "config.xml"))) and (
         not os.path.exists(os.path.join(args.base_configs_dir, "config.yaml"))
     ):
-        raise Exception(
-            "No config.xml or config.yaml in {}".format(args.base_configs_dir)
-        )
+        raise Exception(f"No config.xml or config.yaml in {args.base_configs_dir}")
 
     if (not os.path.exists(os.path.join(args.base_configs_dir, "users.xml"))) and (
         not os.path.exists(os.path.join(args.base_configs_dir, "users.yaml"))
     ):
-        raise Exception(
-            "No users.xml or users.yaml in {}".format(args.base_configs_dir)
-        )
+        raise Exception(f"No users.xml or users.yaml in {args.base_configs_dir}")
 
 
 def docker_kill_handler_handler(signum, frame):
@@ -307,7 +296,7 @@ if __name__ == "__main__":
     parallel_args = ""
     if args.parallel:
         parallel_args += "--dist=loadfile"
-        parallel_args += " -n {}".format(args.parallel)
+        parallel_args += f" -n {args.parallel}"
 
     rand_args = ""
     # if not args.no_random:
@@ -315,7 +304,7 @@ if __name__ == "__main__":
 
     net = ""
     if args.network:
-        net = "--net={}".format(args.network)
+        net = f"--net={args.network}"
     elif not args.disable_net_host:
         net = "--net=host"
 
@@ -325,25 +314,25 @@ if __name__ == "__main__":
         for img_tag in args.docker_compose_images_tags:
             [image, tag] = img_tag.split(":")
             if image == "clickhouse/mysql-golang-client":
-                env_tags += "-e {}={} ".format("DOCKER_MYSQL_GOLANG_CLIENT_TAG", tag)
+                env_tags += f"-e DOCKER_MYSQL_GOLANG_CLIENT_TAG={tag} "
             elif image == "clickhouse/dotnet-client":
-                env_tags += "-e {}={} ".format("DOCKER_DOTNET_CLIENT_TAG", tag)
+                env_tags += f"-e DOCKER_DOTNET_CLIENT_TAG={tag} "
             elif image == "clickhouse/mysql-java-client":
-                env_tags += "-e {}={} ".format("DOCKER_MYSQL_JAVA_CLIENT_TAG", tag)
+                env_tags += f"-e DOCKER_MYSQL_JAVA_CLIENT_TAG={tag} "
             elif image == "clickhouse/mysql-js-client":
-                env_tags += "-e {}={} ".format("DOCKER_MYSQL_JS_CLIENT_TAG", tag)
+                env_tags += f"-e DOCKER_MYSQL_JS_CLIENT_TAG={tag} "
             elif image == "clickhouse/mysql-php-client":
-                env_tags += "-e {}={} ".format("DOCKER_MYSQL_PHP_CLIENT_TAG", tag)
+                env_tags += f"-e DOCKER_MYSQL_PHP_CLIENT_TAG={tag} "
             elif image == "clickhouse/postgresql-java-client":
-                env_tags += "-e {}={} ".format("DOCKER_POSTGRESQL_JAVA_CLIENT_TAG", tag)
+                env_tags += f"-e DOCKER_POSTGRESQL_JAVA_CLIENT_TAG={tag} "
             elif image == "clickhouse/integration-test":
-                env_tags += "-e {}={} ".format("DOCKER_BASE_TAG", tag)
+                env_tags += f"-e DOCKER_BASE_TAG={tag} "
             elif image == "clickhouse/kerberized-hadoop":
-                env_tags += "-e {}={} ".format("DOCKER_KERBERIZED_HADOOP_TAG", tag)
+                env_tags += f"-e DOCKER_KERBERIZED_HADOOP_TAG={tag} "
             elif image == "clickhouse/kerberos-kdc":
-                env_tags += "-e {}={} ".format("DOCKER_KERBEROS_KDC_TAG", tag)
+                env_tags += f"-e DOCKER_KERBEROS_KDC_TAG={tag} "
             else:
-                logging.info("Unknown image %s" % (image))
+                logging.info(f"Unknown image {image}")
 
     # create named volume which will be used inside to store images and other docker related files,
     # to avoid redownloading it every time
@@ -353,11 +342,7 @@ if __name__ == "__main__":
     if args.tmpfs:
         dockerd_internal_volume = "--tmpfs /var/lib/docker -e DOCKER_RAMDISK=true"
     elif args.dockerd_volume:
-        dockerd_internal_volume = (
-            "--mount type=bind,source={},target=/var/lib/docker".format(
-                args.dockerd_volume
-            )
-        )
+        dockerd_internal_volume = f"--mount type=bind,source={args.dockerd_volume},target=/var/lib/docker"
     else:
         try:
             subprocess.check_call(
@@ -381,13 +366,9 @@ if __name__ == "__main__":
     env_cleanup = ""
     if args.cleanup_containers:
         env_cleanup = "-e PYTEST_CLEANUP_CONTAINERS=1"
-    # enable tty mode & interactive for docker if we have real tty
-    tty = ""
-    if sys.stdout.isatty() and sys.stdin.isatty():
-        tty = "-it"
-
+    tty = "-it" if sys.stdout.isatty() and sys.stdin.isatty() else ""
     # Remove old logs.
-    for old_log_path in glob.glob(args.cases_dir + "/pytest*.log"):
+    for old_log_path in glob.glob(f"{args.cases_dir}/pytest*.log"):
         os.remove(old_log_path)
 
     if args.keyword_expression:
@@ -418,29 +399,28 @@ if __name__ == "__main__":
         opts=" ".join(args.pytest_args).replace("'", "\\'"),
         tests_list=" ".join(args.tests_list),
         dockerd_internal_volume=dockerd_internal_volume,
-        img=DIND_INTEGRATION_TESTS_IMAGE_NAME + ":" + args.docker_image_version,
+        img=f"{DIND_INTEGRATION_TESTS_IMAGE_NAME}:{args.docker_image_version}",
         name=CONTAINER_NAME,
     )
 
-    cmd = cmd_base + " " + args.command
+    cmd = f"{cmd_base} {args.command}"
     cmd_pre_pull = (
         cmd_base
         + " find /compose -name docker_compose_*.yml -exec docker-compose -f '{}' pull \;"
     )
 
-    containers = subprocess.check_output(
+    if containers := subprocess.check_output(
         f"docker ps --all --quiet --filter name={CONTAINER_NAME} --format={{{{.ID}}}}",
         shell=True,
         universal_newlines=True,
-    ).splitlines()
-    if containers:
+    ).splitlines():
         print(f"Trying to kill containers name={CONTAINER_NAME} ids={containers}")
         subprocess.check_call(f"docker kill {' '.join(containers)}", shell=True)
         print(f"Containers {containers} killed")
 
     if args.pre_pull:
-        print(("Running pre pull as: '" + cmd_pre_pull + "'."))
+        print(f"Running pre pull as: '{cmd_pre_pull}'.")
         subprocess.check_call(cmd_pre_pull, shell=True)
 
-    print(("Running pytest container as: '" + cmd + "'."))
+    print(f"Running pytest container as: '{cmd}'.")
     subprocess.check_call(cmd, shell=True)

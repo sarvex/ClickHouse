@@ -15,8 +15,8 @@ def setup():
     for handler in logger.handlers:
         if isinstance(handler, logging.FileHandler):
             filename, ext = os.path.splitext(handler.baseFilename)
-            if not filename.endswith("-" + worker_name):
-                new_filename = filename + "-" + worker_name
+            if not filename.endswith(f"-{worker_name}"):
+                new_filename = f"{filename}-{worker_name}"
                 new_handler = logging.FileHandler(new_filename + ext)
                 new_handler.setFormatter(handler.formatter)
                 new_handler.setLevel(handler.level)

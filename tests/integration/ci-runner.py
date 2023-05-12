@@ -43,11 +43,10 @@ def stringhash(s):
 def has_test(tests, test_to_match):
     for test in tests:
         if len(test_to_match) < len(test):
-            if test[0 : len(test_to_match)] == test_to_match:
+            if test[: len(test_to_match)] == test_to_match:
                 return True
-        else:
-            if test_to_match[0 : len(test)] == test:
-                return True
+        elif test_to_match[: len(test)] == test:
+            return True
     return False
 
 
@@ -107,7 +106,7 @@ def get_counters(fname):
             #     [gw0] [  7%] ERROR test_mysql_protocol/test.py::test_golang_client
             #
             # And only the line with test status should be matched
-            if not (".py::" in line and " " in line):
+            if ".py::" not in line or " " not in line:
                 continue
 
             line_arr = line.strip().split(" ")
@@ -119,9 +118,9 @@ def get_counters(fname):
             #     [gw0] [  7%] ERROR test_mysql_protocol/test.py::test_golang_client
             #     [gw3] [ 40%] PASSED test_replicated_users/test.py::test_rename_replicated[QUOTA]
             state = line_arr[-2]
-            test_name = line_arr[-1]
-
             if state in counters:
+                test_name = line_arr[-1]
+
                 counters[state].add(test_name)
             else:
                 # will skip lines like:
@@ -172,7 +171,7 @@ def clear_ip_tables_and_restart_daemons():
             shell=True,
         )
     except subprocess.CalledProcessError as err:
-        logging.info("docker kill excepted: " + str(err))
+        logging.info(f"docker kill excepted: {str(err)}")
 
     try:
         logging.info("Removing all docker containers")
@@ -181,7 +180,7 @@ def clear_ip_tables_and_restart_daemons():
             shell=True,
         )
     except subprocess.CalledProcessError as err:
-        logging.info("docker rm excepted: " + str(err))
+        logging.info(f"docker rm excepted: {str(err)}")
 
     # don't restart docker if it's disabled
     if os.environ.get("CLICKHOUSE_TESTS_RUNNER_RESTART_DOCKER", "1") == "1":
@@ -189,7 +188,7 @@ def clear_ip_tables_and_restart_daemons():
             logging.info("Stopping docker daemon")
             subprocess.check_output("service docker stop", shell=True)
         except subprocess.CalledProcessError as err:
-            logging.info("docker stop excepted: " + str(err))
+            logging.info(f"docker stop excepted: {str(err)}")
 
         try:
             for i in range(200):
@@ -204,7 +203,7 @@ def clear_ip_tables_and_restart_daemons():
             else:
                 raise Exception("Docker daemon doesn't responding")
         except subprocess.CalledProcessError as err:
-            logging.info("Can't reload docker: " + str(err))
+            logging.info(f"Can't reload docker: {str(err)}")
 
     iptables_iter = 0
     try:
@@ -257,13 +256,11 @@ class ClickhouseIntegrationTestsRunner:
 
     def get_image_with_version(self, name):
         if name in self.image_versions:
-            return name + ":" + self.image_versions[name]
+            return f"{name}:{self.image_versions[name]}"
         logging.warn(
             "Cannot find image %s in params list %s", name, self.image_versions
         )
-        if ":" not in name:
-            return name + ":latest"
-        return name
+        return f"{name}:latest" if ":" not in name else name
 
     def get_image_version(self, name: str):
         if name in self.image_versions:
@@ -314,7 +311,7 @@ class ClickhouseIntegrationTestsRunner:
                 )
                 return
             except subprocess.CalledProcessError as err:
-                logging.info("docker-compose pull failed: " + str(err))
+                logging.info(f"docker-compose pull failed: {str(err)}")
                 continue
         logging.error("Pulling images failed for 5 attempts. Will fail the worker.")
         # We pass specific retcode to to ci/integration_test_check.py to skip status reporting and restart job
@@ -339,10 +336,10 @@ class ClickhouseIntegrationTestsRunner:
                 if package in f:
                     full_path = os.path.join(debs_path, f)
                     logging.info("Package found in %s", full_path)
-                    log_name = "install_" + f + ".log"
+                    log_name = f"install_{f}.log"
                     log_path = os.path.join(str(self.path()), log_name)
                     with open(log_path, "w") as log:
-                        cmd = "dpkg -x {} .".format(full_path)
+                        cmd = f"dpkg -x {full_path} ."
                         logging.info("Executing installation cmd %s", cmd)
                         retcode = subprocess.Popen(
                             cmd, shell=True, stderr=log, stdout=log
@@ -353,7 +350,7 @@ class ClickhouseIntegrationTestsRunner:
                             raise Exception("Installation of %s failed", full_path)
                     break
             else:
-                raise Exception("Package with {} not found".format(package))
+                raise Exception(f"Package with {package} not found")
         # logging.info("Unstripping binary")
         # logging.info(
         #     "Unstring %s",
@@ -380,10 +377,8 @@ class ClickhouseIntegrationTestsRunner:
         )
 
     def _compress_logs(self, dir, relpaths, result_path):
-        retcode = subprocess.call(  # STYLE_CHECK_ALLOW_SUBPROCESS_CHECK_CALL
-            "tar --use-compress-program='zstd --threads=0' -cf {} -C {} {}".format(
-                result_path, dir, " ".join(relpaths)
-            ),
+        retcode = subprocess.call(
+            f"""tar --use-compress-program='zstd --threads=0' -cf {result_path} -C {dir} {" ".join(relpaths)}""",
             shell=True,
         )
         # tar return 1 when the files are changed on compressing, we ignore it
@@ -434,36 +429,28 @@ class ClickhouseIntegrationTestsRunner:
                 logging.info("runner output:")
                 with open(out_file_full, "r") as all_tests_full_file:
                     for line in all_tests_full_file:
-                        line = line.rstrip()
-                        if line:
+                        if line := line.rstrip():
                             logging.info("runner output: %s", line)
             else:
                 logging.info("runner output '%s' is empty", out_file_full)
 
             raise Exception(
-                "There is something wrong with getting all tests list: file '{}' is empty or does not exist.".format(
-                    all_tests_file_path
-                )
+                f"There is something wrong with getting all tests list: file '{all_tests_file_path}' is empty or does not exist."
             )
 
         all_tests = []
         with open(all_tests_file_path, "r") as all_tests_file:
-            for line in all_tests_file:
-                all_tests.append(line.strip())
+            all_tests.extend(line.strip() for line in all_tests_file)
         return list(sorted(all_tests))
 
     def _get_parallel_tests_skip_list(self, repo_path):
-        skip_list_file_path = "{}/tests/integration/parallel_skip.json".format(
-            repo_path
-        )
+        skip_list_file_path = f"{repo_path}/tests/integration/parallel_skip.json"
         if (
             not os.path.isfile(skip_list_file_path)
             or os.path.getsize(skip_list_file_path) == 0
         ):
             raise Exception(
-                "There is something wrong with getting all tests list: file '{}' is empty or does not exist.".format(
-                    skip_list_file_path
-                )
+                f"There is something wrong with getting all tests list: file '{skip_list_file_path}' is empty or does not exist."
             )
 
         skip_list_tests = []
@@ -525,15 +512,12 @@ class ClickhouseIntegrationTestsRunner:
                     logging.info(
                         "Can run with custom docker image version %s", runner_version
                     )
-                    image_cmd += " --docker-image-version={} ".format(runner_version)
-                else:
-                    if self._can_run_with(
+                    image_cmd += f" --docker-image-version={runner_version} "
+                elif self._can_run_with(
                         os.path.join(repo_path, "tests/integration", "runner"),
                         "--docker-compose-images-tags",
                     ):
-                        image_cmd += "--docker-compose-images-tags={} ".format(
-                            self.get_image_with_version(img)
-                        )
+                    image_cmd += f"--docker-compose-images-tags={self.get_image_with_version(img)} "
         else:
             image_cmd = ""
             logging.info("Cannot run with custom docker image version :(")
@@ -542,10 +526,7 @@ class ClickhouseIntegrationTestsRunner:
     def _find_test_data_dirs(self, repo_path, test_names):
         relpaths = {}
         for test_name in test_names:
-            if "/" in test_name:
-                test_dir = test_name[: test_name.find("/")]
-            else:
-                test_dir = test_name
+            test_dir = test_name[: test_name.find("/")] if "/" in test_name else test_name
             if os.path.isdir(os.path.join(repo_path, "tests/integration", test_dir)):
                 for name in os.listdir(
                     os.path.join(repo_path, "tests/integration", test_dir)
@@ -558,11 +539,12 @@ class ClickhouseIntegrationTestsRunner:
         return relpaths
 
     def _get_test_data_dirs_difference(self, new_snapshot, old_snapshot):
-        res = set()
-        for path in new_snapshot:
-            if (path not in old_snapshot) or (old_snapshot[path] != new_snapshot[path]):
-                res.add(path)
-        return res
+        return {
+            path
+            for path in new_snapshot
+            if (path not in old_snapshot)
+            or (old_snapshot[path] != new_snapshot[path])
+        }
 
     def try_run_test_group(
         self, repo_path, test_group, tests_in_group, num_tries, num_workers
@@ -572,7 +554,7 @@ class ClickhouseIntegrationTestsRunner:
                 repo_path, test_group, tests_in_group, num_tries, num_workers
             )
         except Exception as e:
-            logging.info("Failed to run {}:\n{}".format(str(test_group), str(e)))
+            logging.info(f"Failed to run {str(test_group)}:\n{str(e)}")
             counters = {
                 "ERROR": [],
                 "PASSED": [],

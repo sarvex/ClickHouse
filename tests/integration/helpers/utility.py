@@ -26,20 +26,18 @@ class SafeThread(threading.Thread):
 
 def random_string(length):
     letters = string.ascii_letters
-    return "".join(random.choice(letters) for i in range(length))
+    return "".join(random.choice(letters) for _ in range(length))
 
 
 def generate_values(date_str, count, sign=1):
     data = [[date_str, sign * (i + 1), random_string(10)] for i in range(count)]
     data.sort(key=lambda tup: tup[1])
-    return ",".join(["('{}',{},'{}')".format(x, y, z) for x, y, z in data])
+    return ",".join([f"('{x}',{y},'{z}')" for x, y, z in data])
 
 
 def replace_config(config_path, old, new):
-    config = open(config_path, "r")
-    config_lines = config.readlines()
-    config.close()
+    with open(config_path, "r") as config:
+        config_lines = config.readlines()
     config_lines = [line.replace(old, new) for line in config_lines]
-    config = open(config_path, "w")
-    config.writelines(config_lines)
-    config.close()
+    with open(config_path, "w") as config:
+        config.writelines(config_lines)

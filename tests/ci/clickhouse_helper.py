@@ -56,9 +56,8 @@ class ClickHouseHelper:
                 + ": HTTP code "
                 + str(response.status_code)
                 + ": '"
-                + str(response.text)
-                + "'"
-            )
+                + response.text
+            ) + "'"
 
             if response.status_code >= 500:
                 # A retriable error
@@ -90,10 +89,7 @@ class ClickHouseHelper:
                 raise
 
     def insert_events_into(self, db, table, events, safe=True):
-        jsons = []
-        for event in events:
-            jsons.append(json.dumps(event))
-
+        jsons = [json.dumps(event) for event in events]
         try:
             self._insert_json_str_info(db, table, ",".join(jsons))
         except InsertException as e:
@@ -125,11 +121,7 @@ class ClickHouseHelper:
 
     def select_json_each_row(self, db, query):
         text = self._select_and_get_json_each_row(db, query)
-        result = []
-        for line in text.split("\n"):
-            if line:
-                result.append(json.loads(line))
-        return result
+        return [json.loads(line) for line in text.split("\n") if line]
 
 
 def prepare_tests_results_for_clickhouse(
@@ -159,7 +151,7 @@ def prepare_tests_results_for_clickhouse(
         commit_url=pr_info.commit_html_url,
         check_name=check_name,
         check_status=check_status,
-        check_duration_ms=int(float(check_duration) * 1000),
+        check_duration_ms=int(check_duration * 1000),
         check_start_time=check_start_time,
         report_url=report_url,
         pull_request_url=pull_request_url,

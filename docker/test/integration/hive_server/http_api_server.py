@@ -5,18 +5,15 @@ from flask import Flask, flash, request, redirect, url_for
 
 
 def run_command(command, wait=False):
-    print("{} - execute shell command:{}".format(datetime.datetime.now(), command))
-    lines = []
+    print(f"{datetime.datetime.now()} - execute shell command:{command}")
     p = subprocess.Popen(
         command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True
     )
-    if wait:
-        for l in iter(p.stdout.readline, b""):
-            lines.append(l)
-        p.poll()
-        return (lines, p.returncode)
-    else:
+    if not wait:
         return (iter(p.stdout.readline, b""), 0)
+    lines = list(iter(p.stdout.readline, b""))
+    p.poll()
+    return (lines, p.returncode)
 
 
 UPLOAD_FOLDER = "./"

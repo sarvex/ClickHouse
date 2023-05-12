@@ -354,7 +354,7 @@ def get_workflow_description_fallback(
         for wf in workflows_data
     ]
 
-    workflow_descriptions = [
+    return [
         WorkflowDescription(
             url=wf["url"],
             run_id=wf["id"],
@@ -367,8 +367,6 @@ def get_workflow_description_fallback(
         )
         for wf in workflows_data
     ]
-
-    return workflow_descriptions
 
 
 def get_workflow_description(workflow_url: str, token: str) -> WorkflowDescription:
@@ -416,7 +414,7 @@ def main(event):
 
     print("Got event for PR", event_data["number"])
     action = event_data["action"]
-    print("Got action", event_data["action"])
+    print("Got action", action)
     pull_request = event_data["pull_request"]
     label = ""
     if action == "labeled":
@@ -439,13 +437,14 @@ def main(event):
             workflow_descriptions
             or get_workflow_description_fallback(pull_request, token)
         )
-        urls_to_cancel = []
-        for workflow_description in workflow_descriptions:
+        urls_to_cancel = [
+            workflow_description.cancel_url
+            for workflow_description in workflow_descriptions
             if (
                 workflow_description.status != "completed"
                 and workflow_description.conclusion != "cancelled"
-            ):
-                urls_to_cancel.append(workflow_description.cancel_url)
+            )
+        ]
         print(f"Found {len(urls_to_cancel)} workflows to cancel")
         exec_workflow_url(urls_to_cancel, token)
         return
@@ -514,14 +513,16 @@ def main(event):
             workflow_descriptions
             or get_workflow_description_fallback(pull_request, token)
         )
-        urls_to_cancel = []
-        for workflow_description in workflow_descriptions:
+        urls_to_cancel = [
+            workflow_description.cancel_url
+            for workflow_description in workflow_descriptions
             if (
                 workflow_description.status != "completed"
                 and workflow_description.conclusion != "cancelled"
-                and workflow_description.head_sha != pull_request["head"]["sha"]
-            ):
-                urls_to_cancel.append(workflow_description.cancel_url)
+                and workflow_description.head_sha
+                != pull_request["head"]["sha"]
+            )
+        ]
         print(f"Found {len(urls_to_cancel)} workflows to cancel")
         exec_workflow_url(urls_to_cancel, token)
         return

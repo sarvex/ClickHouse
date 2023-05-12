@@ -122,10 +122,7 @@ def parse_args() -> argparse.Namespace:
 def retry_popen(cmd: str, log_file: Path) -> int:
     max_retries = 5
     for retry in range(max_retries):
-        # From time to time docker build may failed. Curl issues, or even push
-        # It will sleep progressively 5, 15, 30 and 50 seconds between retries
-        progressive_sleep = 5 * sum(i + 1 for i in range(retry))
-        if progressive_sleep:
+        if progressive_sleep := 5 * sum(i + 1 for i in range(retry)):
             logging.warning(
                 "The following command failed, sleep %s before retry: %s",
                 progressive_sleep,
@@ -194,21 +191,17 @@ def gen_tags(version: ClickHouseVersion, release_type: str) -> List[str]:
     """
     parts = version.string.split(".")
     tags = []
-    if release_type == "latest":
+    if release_type == "head":
         tags.append(release_type)
-        for i in range(len(parts)):
-            tags.append(".".join(parts[: i + 1]))
+    elif release_type == "latest":
+        tags.append(release_type)
+        tags.extend(".".join(parts[: i + 1]) for i in range(len(parts)))
     elif release_type == "major":
-        for i in range(len(parts)):
-            tags.append(".".join(parts[: i + 1]))
+        tags.extend(".".join(parts[: i + 1]) for i in range(len(parts)))
     elif release_type == "minor":
-        for i in range(1, len(parts)):
-            tags.append(".".join(parts[: i + 1]))
+        tags.extend(".".join(parts[: i + 1]) for i in range(1, len(parts)))
     elif release_type == "patch":
-        for i in range(2, len(parts)):
-            tags.append(".".join(parts[: i + 1]))
-    elif release_type == "head":
-        tags.append(release_type)
+        tags.extend(".".join(parts[: i + 1]) for i in range(2, len(parts)))
     else:
         raise ValueError(f"{release_type} is not valid release part")
     return tags
@@ -240,9 +233,13 @@ def build_and_push_image(
         tag += f"-{os}"
     init_args = ["docker", "buildx", "build", "--build-arg BUILDKIT_INLINE_CACHE=1"]
     if push:
-        init_args.append("--push")
-        init_args.append("--output=type=image,push-by-digest=true")
-        init_args.append(f"--tag={image.repo}")
+        init_args.extend(
+            (
+                "--push",
+                "--output=type=image,push-by-digest=true",
+                f"--tag={image.repo}",
+            )
+        )
     else:
         init_args.append("--output=type=docker")
 

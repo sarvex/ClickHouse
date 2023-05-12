@@ -37,9 +37,7 @@ class Layout(object):
         return self.LAYOUTS_STR_DICT[self.name]
 
     def get_key_block_name(self):
-        if self.is_complex:
-            return "key"
-        return "id"
+        return "key" if self.is_complex else "id"
 
 
 class Row(object):
@@ -99,7 +97,7 @@ class Field(object):
 
     def get_range_hash_str(self):
         if not self.range_hash_type:
-            raise Exception("Field {} is not range hashed".format(self.name))
+            raise Exception(f"Field {self.name} is not range hashed")
         return """
             <range_{type}>
                 <name>{name}</name>
@@ -131,14 +129,12 @@ class DictionaryStructure(object):
 
             if field.is_range_key:
                 if self.range_key is not None:
-                    raise Exception("Duplicate range key {}".format(field.name))
+                    raise Exception(f"Duplicate range key {field.name}")
                 self.range_key = field
 
         if not self.layout.is_complex and len(self.keys) > 1:
             raise Exception(
-                "More than one key {} field in non complex layout {}".format(
-                    len(self.keys), self.layout.name
-                )
+                f"More than one key {len(self.keys)} field in non complex layout {self.layout.name}"
             )
 
         if self.layout.is_ranged and (
@@ -147,23 +143,20 @@ class DictionaryStructure(object):
             raise Exception("Inconsistent configuration of ranged dictionary")
 
     def get_structure_str(self):
-        fields_strs = []
-        for field in self.ordinary_fields:
-            fields_strs.append(field.get_attribute_str())
-
+        fields_strs = [field.get_attribute_str() for field in self.ordinary_fields]
         key_strs = []
-        if self.layout.is_complex:
-            for key_field in self.keys:
+        for key_field in self.keys:
+            if self.layout.is_complex:
                 key_strs.append(key_field.get_attribute_str())
-        else:  # same for simple and ranged
-            for key_field in self.keys:
+            else:  # same for simple and ranged
                 key_strs.append(key_field.get_simple_index_str())
 
         ranged_strs = []
         if self.layout.is_ranged:
-            for range_field in self.range_fields:
-                ranged_strs.append(range_field.get_range_hash_str())
-
+            ranged_strs.extend(
+                range_field.get_range_hash_str()
+                for range_field in self.range_fields
+            )
         return """
         <layout>
             {layout_str}
@@ -183,13 +176,9 @@ class DictionaryStructure(object):
         )
 
     def get_ordered_names(self):
-        fields_strs = []
-        for key_field in self.keys:
-            fields_strs.append(key_field.name)
-        for range_field in self.range_fields:
-            fields_strs.append(range_field.name)
-        for field in self.ordinary_fields:
-            fields_strs.append(field.name)
+        fields_strs = [key_field.name for key_field in self.keys]
+        fields_strs.extend(range_field.name for range_field in self.range_fields)
+        fields_strs.extend(field.name for field in self.ordinary_fields)
         return fields_strs
 
     def get_all_fields(self):
@@ -199,37 +188,31 @@ class DictionaryStructure(object):
         self, dict_name, field, row, or_default, with_type, has
     ):
         if field in self.keys:
-            raise Exception(
-                "Trying to receive key field {} from dictionary".format(field.name)
-            )
+            raise Exception(f"Trying to receive key field {field.name} from dictionary")
 
-        if not self.layout.is_complex:
-            if not or_default:
-                key_expr = ", toUInt64({})".format(row.data[self.keys[0].name])
-            else:
-                key_expr = ", toUInt64({})".format(self.keys[0].default_value_for_get)
-        else:
+        if self.layout.is_complex:
             key_exprs_strs = []
             for key in self.keys:
-                if not or_default:
-                    val = row.data[key.name]
-                else:
-                    val = key.default_value_for_get
+                val = row.data[key.name] if not or_default else key.default_value_for_get
                 if isinstance(val, str):
-                    val = "'" + val + "'"
+                    val = f"'{val}'"
                 key_exprs_strs.append(
                     "to{type}({value})".format(type=key.field_type, value=val)
                 )
             key_expr = ", tuple(" + ",".join(key_exprs_strs) + ")"
 
+        elif not or_default:
+            key_expr = f", toUInt64({row.data[self.keys[0].name]})"
+        else:
+            key_expr = f", toUInt64({self.keys[0].default_value_for_get})"
         date_expr = ""
         if self.layout.is_ranged:
             val = row.data[self.range_key.name]
             if isinstance(val, str):
-                val = "'" + val + "'"
+                val = f"'{val}'"
             val = "to{type}({val})".format(type=self.range_key.field_type, val=val)
 
-            date_expr = ", " + val
+            date_expr = f", {val}"
 
             if or_default:
                 raise Exception(
@@ -240,14 +223,12 @@ class DictionaryStructure(object):
             or_default_expr = "OrDefault"
             if field.default_value_for_get is None:
                 raise Exception(
-                    "Can create 'dictGetOrDefault' query for field {} without default_value_for_get".format(
-                        field.name
-                    )
+                    f"Can create 'dictGetOrDefault' query for field {field.name} without default_value_for_get"
                 )
 
             val = field.default_value_for_get
             if isinstance(val, str):
-                val = "'" + val + "'"
+                val = f"'{val}'"
             default_value_for_get = ", to{type}({value})".format(
                 type=field.field_type, value=val
             )
@@ -255,12 +236,8 @@ class DictionaryStructure(object):
             or_default_expr = ""
             default_value_for_get = ""
 
-        if with_type:
-            field_type = field.field_type
-        else:
-            field_type = ""
-
-        field_name = ", '" + field.name + "'"
+        field_type = field.field_type if with_type else ""
+        field_name = f", '{field.name}'"
         if has:
             what = "Has"
             field_type = ""
@@ -315,7 +292,7 @@ class DictionaryStructure(object):
 
     def get_hierarchical_expressions(self, dict_name, row):
         if self.layout.is_simple:
-            key_expr = "toUInt64({})".format(row.data[self.keys[0].name])
+            key_expr = f"toUInt64({row.data[self.keys[0].name]})"
             return [
                 "dictGetHierarchy('{dict_name}', {key})".format(
                     dict_name=dict_name,
@@ -327,8 +304,8 @@ class DictionaryStructure(object):
 
     def get_is_in_expressions(self, dict_name, row, parent_row):
         if self.layout.is_simple:
-            child_key_expr = "toUInt64({})".format(row.data[self.keys[0].name])
-            parent_key_expr = "toUInt64({})".format(parent_row.data[self.keys[0].name])
+            child_key_expr = f"toUInt64({row.data[self.keys[0].name]})"
+            parent_key_expr = f"toUInt64({parent_row.data[self.keys[0].name]})"
             return [
                 "dictIsIn('{dict_name}', {child_key}, {parent_key})".format(
                     dict_name=dict_name,
@@ -414,22 +391,20 @@ class Dictionary(object):
     def load_data(self, data):
         if not self.source.prepared:
             raise Exception(
-                "Cannot load data for dictionary {}, source is not prepared".format(
-                    self.name
-                )
+                f"Cannot load data for dictionary {self.name}, source is not prepared"
             )
 
         self.source.load_data(data, self.table_name)
 
     def get_select_get_queries(self, field, row):
         return [
-            "select {}".format(expr)
+            f"select {expr}"
             for expr in self.structure.get_get_expressions(self.name, field, row)
         ]
 
     def get_select_get_or_default_queries(self, field, row):
         return [
-            "select {}".format(expr)
+            f"select {expr}"
             for expr in self.structure.get_get_or_default_expressions(
                 self.name, field, row
             )
@@ -437,20 +412,22 @@ class Dictionary(object):
 
     def get_select_has_queries(self, field, row):
         return [
-            "select {}".format(expr)
+            f"select {expr}"
             for expr in self.structure.get_has_expressions(self.name, field, row)
         ]
 
     def get_hierarchical_queries(self, row):
         return [
-            "select {}".format(expr)
+            f"select {expr}"
             for expr in self.structure.get_hierarchical_expressions(self.name, row)
         ]
 
     def get_is_in_queries(self, row, parent_row):
         return [
-            "select {}".format(expr)
-            for expr in self.structure.get_is_in_expressions(self.name, row, parent_row)
+            f"select {expr}"
+            for expr in self.structure.get_is_in_expressions(
+                self.name, row, parent_row
+            )
         ]
 
     def is_complex(self):

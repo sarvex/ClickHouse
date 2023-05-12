@@ -118,11 +118,7 @@ class ClickHouseHelper:
 
     def select_json_each_row(self, db, query):
         text = self._select_and_get_json_each_row(db, query)
-        result = []
-        for line in text.split("\n"):
-            if line:
-                result.append(json.loads(line))
-        return result
+        return [json.loads(line) for line in text.split("\n") if line]
 
 
 CH_CLIENT = ClickHouseHelper(get_parameter_from_ssm("clickhouse-test-stat-url"), "play")
@@ -131,7 +127,7 @@ CH_CLIENT = ClickHouseHelper(get_parameter_from_ssm("clickhouse-test-stat-url"),
 def set_capacity(
     runner_type: str, queues: List[Queue], client: Any, dry_run: bool = True
 ) -> None:
-    assert len(queues) in (1, 2)
+    assert len(queues) in {1, 2}
     assert all(q.label == runner_type for q in queues)
     as_groups = client.describe_auto_scaling_groups(
         Filters=[

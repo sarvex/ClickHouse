@@ -46,7 +46,7 @@ def test_replica_always_download(started_cluster):
     node1.query("SYSTEM STOP MERGES")
 
     for i in range(0, 10):
-        node1.query_with_retry("INSERT INTO test_table VALUES ({}, '{}')".format(i, i))
+        node1.query_with_retry(f"INSERT INTO test_table VALUES ({i}, '{i}')")
 
     assert node1.query("SELECT COUNT() FROM test_table") == "10\n"
     assert_eq_with_retry(node2, "SELECT COUNT() FROM test_table", "10\n")

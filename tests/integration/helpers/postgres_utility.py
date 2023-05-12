@@ -265,11 +265,7 @@ queries = [
 def assert_nested_table_is_created(
     instance, table_name, materialized_database="test_database", schema_name=""
 ):
-    if len(schema_name) == 0:
-        table = table_name
-    else:
-        table = schema_name + "." + table_name
-
+    table = table_name if len(schema_name) == 0 else f"{schema_name}.{table_name}"
     print(f"Checking table {table} exists in {materialized_database}")
     database_tables = instance.query(f"SHOW TABLES FROM {materialized_database}")
 

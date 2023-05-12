@@ -34,21 +34,18 @@ def process_logs(
                 test_result.log_urls.append(processed_logs[path])
             elif path:
                 url = s3_client.upload_test_report_to_s3(
-                    path.as_posix(), s3_path_prefix + "/" + path.name
+                    path.as_posix(), f"{s3_path_prefix}/{path.name}"
                 )
                 test_result.log_urls.append(url)
                 processed_logs[path] = url
 
-    additional_urls = []
-    for log_path in additional_logs:
-        if log_path:
-            additional_urls.append(
-                s3_client.upload_test_report_to_s3(
-                    log_path, s3_path_prefix + "/" + os.path.basename(log_path)
-                )
-            )
-
-    return additional_urls
+    return [
+        s3_client.upload_test_report_to_s3(
+            log_path, f"{s3_path_prefix}/{os.path.basename(log_path)}"
+        )
+        for log_path in additional_logs
+        if log_path
+    ]
 
 
 def upload_results(
@@ -74,11 +71,7 @@ def upload_results(
         branch_url = f"{GITHUB_SERVER_URL}/{GITHUB_REPOSITORY}/pull/{pr_number}"
     commit_url = f"{GITHUB_SERVER_URL}/{GITHUB_REPOSITORY}/commit/{commit_sha}"
 
-    if additional_urls:
-        raw_log_url = additional_urls.pop(0)
-    else:
-        raw_log_url = GITHUB_JOB_URL()
-
+    raw_log_url = additional_urls.pop(0) if additional_urls else GITHUB_JOB_URL()
     statuscolors = (
         ReportColorTheme.bugfixcheck if "bugfix validate check" in check_name else None
     )
@@ -98,6 +91,8 @@ def upload_results(
     with open("report.html", "w", encoding="utf-8") as f:
         f.write(html_report)
 
-    url = s3_client.upload_test_report_to_s3("report.html", s3_path_prefix + ".html")
+    url = s3_client.upload_test_report_to_s3(
+        "report.html", f"{s3_path_prefix}.html"
+    )
     logging.info("Search result in url %s", url)
     return url

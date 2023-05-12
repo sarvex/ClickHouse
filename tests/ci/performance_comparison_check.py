@@ -106,7 +106,7 @@ if __name__ == "__main__":
             f" -e CHPC_TEST_RUN_BY_HASH_NUM={run_by_hash_num}"
         )
         check_name_with_group = (
-            check_name + f" [{run_by_hash_num + 1}/{run_by_hash_total}]"
+            f"{check_name} [{run_by_hash_num + 1}/{run_by_hash_total}]"
         )
     else:
         check_name_with_group = check_name
@@ -121,10 +121,9 @@ if __name__ == "__main__":
         )
         sys.exit(0)
 
-    test_grep_exclude_filter = CI_CONFIG["tests_config"][check_name][
+    if test_grep_exclude_filter := CI_CONFIG["tests_config"][check_name][
         "test_grep_exclude_filter"
-    ]
-    if test_grep_exclude_filter:
+    ]:
         docker_env += f" -e CHPC_TEST_GREP_EXCLUDE={test_grep_exclude_filter}"
         logging.info(
             "Fill fliter our performance tests by grep -v %s", test_grep_exclude_filter
@@ -178,8 +177,7 @@ if __name__ == "__main__":
 
     run_log_path = os.path.join(temp_path, "run.log")
 
-    popen_env = os.environ.copy()
-    popen_env.update(env_extra)
+    popen_env = os.environ | env_extra
     with TeePopen(run_command, run_log_path, env=popen_env) as process:
         retcode = process.wait()
         if retcode == 0:
@@ -214,7 +212,7 @@ if __name__ == "__main__":
     # Upload all images and flamegraphs to S3
     try:
         s3_helper.upload_test_folder_to_s3(
-            os.path.join(result_path, "images"), s3_prefix + "images"
+            os.path.join(result_path, "images"), f"{s3_prefix}images"
         )
     except Exception:
         traceback.print_exc()
@@ -230,15 +228,15 @@ if __name__ == "__main__":
             status_match = re.search("<!--[ ]*status:(.*)-->", report_text)
             message_match = re.search("<!--[ ]*message:(.*)-->", report_text)
         if status_match:
-            status = status_match.group(1).strip()
+            status = status_match[1].strip()
         if message_match:
-            message = message_match.group(1).strip()
+            message = message_match[1].strip()
 
         # TODO: Remove me, always green mode for the first time, unless errors
         status = "success"
         if "errors" in message.lower():
             status = "failure"
-        # TODO: Remove until here
+            # TODO: Remove until here
     except Exception:
         traceback.print_exc()
         status = "failure"

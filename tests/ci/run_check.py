@@ -108,21 +108,21 @@ def main():
 
     description_error, category = check_pr_description(pr_info.body)
     pr_labels_to_add = []
-    pr_labels_to_remove = []
     if (
         category in CATEGORY_TO_LABEL
         and CATEGORY_TO_LABEL[category] not in pr_info.labels
     ):
         pr_labels_to_add.append(CATEGORY_TO_LABEL[category])
 
-    for label in pr_info.labels:
+    pr_labels_to_remove = [
+        label
+        for label in pr_info.labels
         if (
             label in CATEGORY_TO_LABEL.values()
             and category in CATEGORY_TO_LABEL
             and label != CATEGORY_TO_LABEL[category]
-        ):
-            pr_labels_to_remove.append(label)
-
+        )
+    ]
     if pr_info.has_changes_in_submodules():
         pr_labels_to_add.append(SUBMODULE_CHANGED_LABEL)
     elif SUBMODULE_CHANGED_LABEL in pr_info.labels:

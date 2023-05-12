@@ -58,9 +58,12 @@ def get_additional_envs(check_name, run_by_hash_num, run_by_hash_total):
         result.append("USE_NEW_ANALYZER=1")
 
     if run_by_hash_total != 0:
-        result.append(f"RUN_BY_HASH_NUM={run_by_hash_num}")
-        result.append(f"RUN_BY_HASH_TOTAL={run_by_hash_total}")
-
+        result.extend(
+            (
+                f"RUN_BY_HASH_NUM={run_by_hash_num}",
+                f"RUN_BY_HASH_TOTAL={run_by_hash_total}",
+            )
+        )
     return result
 
 
@@ -85,9 +88,7 @@ def get_run_command(
     flaky_check,
     tests_to_run,
 ):
-    additional_options = ["--hung-check"]
-    additional_options.append("--print-time")
-
+    additional_options = ["--hung-check", "--print-time"]
     if tests_to_run:
         additional_options += tests_to_run
 
@@ -137,7 +138,7 @@ def get_tests_to_run(pr_info):
             # e.g. we changed '00001_some_name.reference'
             # and we have ['00001_some_name.sh', '00001_some_name_2.sql']
             # so we want to run only '00001_some_name.sh'
-            result.add(fname_without_ext + ".")
+            result.add(f"{fname_without_ext}.")
         elif "tests/queries/" in fpath:
             # log suspicious changes from tests/ for debugging in case of any problems
             logging.info("File '%s' is changed, but it doesn't look like a test", fpath)
@@ -166,7 +167,7 @@ def process_results(
             for f in os.listdir(server_log_path)
             if os.path.isfile(os.path.join(server_log_path, f))
         ]
-        additional_files = additional_files + [
+        additional_files += [
             os.path.join(server_log_path, f) for f in server_log_files
         ]
 
@@ -269,7 +270,7 @@ def main():
         run_by_hash_num = int(os.getenv("RUN_BY_HASH_NUM", "0"))
         run_by_hash_total = int(os.getenv("RUN_BY_HASH_TOTAL", "0"))
         check_name_with_group = (
-            check_name + f" [{run_by_hash_num + 1}/{run_by_hash_total}]"
+            f"{check_name} [{run_by_hash_num + 1}/{run_by_hash_total}]"
         )
     else:
         run_by_hash_num = 0

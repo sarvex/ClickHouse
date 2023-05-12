@@ -28,12 +28,7 @@ NAME = "Woboq Build"
 
 
 def get_run_command(repo_path, output_path, image):
-    cmd = (
-        "docker run " + f"--volume={repo_path}:/repo_folder "
-        f"--volume={output_path}:/test_output "
-        f"-e 'DATA={S3_DOWNLOAD}/{S3_TEST_REPORTS_BUCKET}/codebrowser/data' {image}"
-    )
-    return cmd
+    return f"docker run --volume={repo_path}:/repo_folder --volume={output_path}:/test_output -e 'DATA={S3_DOWNLOAD}/{S3_TEST_REPORTS_BUCKET}/codebrowser/data' {image}"
 
 
 if __name__ == "__main__":

@@ -62,11 +62,7 @@ class DockerImage:
             return False
         if not self.parent and other.parent:
             return True
-        if self.path < other.path:
-            return True
-        if self.repo < other.repo:
-            return True
-        return False
+        return True if self.path < other.path else self.repo < other.repo
 
     def __hash__(self):
         return hash(self.path)
@@ -162,7 +158,7 @@ def get_changed_docker_images(
 def gen_versions(
     pr_info: PRInfo, suffix: Optional[str]
 ) -> Tuple[List[str], Union[str, List[str]]]:
-    pr_commit_version = str(pr_info.number) + "-" + pr_info.sha
+    pr_commit_version = f"{str(pr_info.number)}-{pr_info.sha}"
     # The order is important, PR number is used as cache during the build
     versions = [str(pr_info.number), pr_commit_version]
     result_version = pr_commit_version
@@ -228,14 +224,8 @@ def build_and_push_one_image(
         Path(TEMP_PATH)
         / f"build_and_push_log_{image.repo.replace('/', '_')}_{version_string}.log"
     )
-    push_arg = ""
-    if push:
-        push_arg = "--push "
-
-    from_tag_arg = ""
-    if child:
-        from_tag_arg = f"--build-arg FROM_TAG={version_string} "
-
+    push_arg = "--push " if push else ""
+    from_tag_arg = f"--build-arg FROM_TAG={version_string} " if child else ""
     cache_from = (
         f"--cache-from type=registry,ref={image.repo}:{version_string} "
         f"--cache-from type=registry,ref={image.repo}:latest"
@@ -285,7 +275,7 @@ def process_single_image(
             if success:
                 results.append(
                     TestResult(
-                        image.repo + ":" + ver,
+                        f"{image.repo}:{ver}",
                         "OK",
                         stopwatch.duration_seconds,
                         [build_log],
@@ -299,7 +289,7 @@ def process_single_image(
         else:
             results.append(
                 TestResult(
-                    image.repo + ":" + ver,
+                    f"{image.repo}:{ver}",
                     "FAIL",
                     stopwatch.duration_seconds,
                     [build_log],
@@ -416,7 +406,7 @@ def main():
     if args.all:
         pr_info.changed_files = set(images_dict.keys())
     elif args.image_path:
-        pr_info.changed_files = set(i for i in args.image_path)
+        pr_info.changed_files = set(args.image_path)
     else:
         try:
             pr_info.fetch_changed_files()

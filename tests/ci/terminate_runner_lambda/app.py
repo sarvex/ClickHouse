@@ -182,7 +182,7 @@ def main(access_token: str, event: dict) -> Dict[str, List[str]]:
 
         delete_for_av = []  # type: RunnerDescriptions
         for candidate in candidates:
-            if candidate not in set(runner.name for runner in runners):
+            if candidate not in {runner.name for runner in runners}:
                 print(
                     f"Candidate {candidate} was not in runners list, simply delete it"
                 )

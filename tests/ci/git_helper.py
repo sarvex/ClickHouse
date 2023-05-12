@@ -22,15 +22,11 @@ TWEAK = 1
 
 # Py 3.8 removeprefix and removesuffix
 def removeprefix(string: str, prefix: str) -> str:
-    if string.startswith(prefix):
-        return string[len(prefix) :]  # noqa: ignore E203, false positive
-    return string
+    return string[len(prefix) :] if string.startswith(prefix) else string
 
 
 def removesuffix(string: str, suffix: str) -> str:
-    if string.endswith(suffix):
-        return string[: -len(suffix)]
-    return string
+    return string[: -len(suffix)] if string.endswith(suffix) else string
 
 
 def commit(name: str) -> str:
@@ -59,12 +55,11 @@ class Runner:
         if cwd is None:
             cwd = self.cwd
         logger.debug("Running command: %s", cmd)
-        output = str(
+        return str(
             subprocess.check_output(
                 cmd, shell=True, cwd=cwd, encoding="utf-8", **kwargs
             ).strip()
         )
-        return output
 
     @property
     def cwd(self) -> str:
@@ -143,7 +138,7 @@ class Git:
 
     @staticmethod
     def check_tag(value: str) -> None:
-        if value == "":
+        if not value:
             return
         if not Git._tag_pattern.match(value):
             raise ValueError(f"last tag {value} doesn't match the pattern")

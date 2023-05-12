@@ -12,15 +12,15 @@ for s in sys.stdin.read().split():
     m = re.match(
         "^([0-9]{6})[0-9]{2}_([0-9]{6})[0-9]{2}_([0-9]+)_([0-9]+)_([0-9]+)$", s
     )
-    if m == None:
+    if m is None:
         continue
-    m1 = m.group(1)
-    m2 = m.group(2)
-    i1 = int(m.group(3))
-    i2 = int(m.group(4))
-    l = int(m.group(5))
+    m1 = m[1]
+    m2 = m[2]
+    i1 = int(m[3])
+    i2 = int(m[4])
+    l = int(m[5])
     if m1 != m2:
-        raise Exception("not in single month: " + s)
+        raise Exception(f"not in single month: {s}")
     if m1 not in parts:
         parts[m1] = []
     parts[m1].append((i1, i2, l, s))
@@ -37,5 +37,5 @@ for m, ps in sorted(parts.items()):
             (x2, y2, l2, s2) = (x1, y1, l1, s1)
             print(s1)
         else:
-            raise Exception("invalid parts intersection: " + s1 + " and " + s2)
+            raise Exception(f"invalid parts intersection: {s1} and {s2}")
     print()

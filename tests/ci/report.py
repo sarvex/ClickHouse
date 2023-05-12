@@ -272,11 +272,11 @@ def _format_header(
     result = result.replace("clickhouse", "ClickHouse")
     if "ClickHouse" not in result:
         result = f"ClickHouse {result}"
-    if branch_url:
-        result = f'{result} for <a href="{branch_url}">{branch_name}</a>'
-    else:
-        result = f"{result} for {branch_name}"
-    return result
+    return (
+        f'{result} for <a href="{branch_url}">{branch_name}</a>'
+        if branch_url
+        else f"{result} for {branch_name}"
+    )
 
 
 def _get_status_style(status: str, colortheme: Optional[ColorTheme] = None) -> str:
@@ -343,7 +343,6 @@ def create_test_html_report(
         )
 
         for test_result in test_results:
-            colspan = 0
             if test_result.log_files is not None:
                 has_log_urls = True
 
@@ -351,8 +350,8 @@ def create_test_html_report(
             is_fail = test_result.status in ("FAIL", "FLAKY")
             if is_fail and test_result.raw_logs is not None:
                 row = '<tr class="failed">'
-            row += "<td>" + test_result.name + "</td>"
-            colspan += 1
+            row += f"<td>{test_result.name}</td>"
+            colspan = 0 + 1
             style = _get_status_style(test_result.status, colortheme=statuscolors)
 
             # Allow to quickly scroll to the first failure.
@@ -374,7 +373,7 @@ def create_test_html_report(
                 test_logs_html = "<br>".join(
                     [_get_html_url(url) for url in test_result.log_urls]
                 )
-                row += "<td>" + test_logs_html + "</td>"
+                row += f"<td>{test_logs_html}</td>"
                 colspan += 1
 
             row += "</tr>"
@@ -394,7 +393,7 @@ def create_test_html_report(
         if has_log_urls:
             headers.append("Logs")
 
-        headers_html = "".join(["<th>" + h + "</th>" for h in headers])
+        headers_html = "".join([f"<th>{h}</th>" for h in headers])
         test_part = HTML_TEST_PART.format(headers=headers_html, rows=rows_part)
     else:
         test_part = ""
@@ -407,7 +406,7 @@ def create_test_html_report(
     if "?" in raw_log_name:
         raw_log_name = raw_log_name.split("?")[0]
 
-    html = HTML_BASE_TEST_TEMPLATE.format(
+    return HTML_BASE_TEST_TEMPLATE.format(
         title=_format_header(header, branch_name),
         header=_format_header(header, branch_name, branch_url),
         raw_log_name=raw_log_name,
@@ -419,7 +418,6 @@ def create_test_html_report(
         commit_url=commit_url,
         additional_urls=additional_html_urls,
     )
-    return html
 
 
 HTML_BASE_BUILD_TEMPLATE = """
@@ -477,15 +475,17 @@ def create_build_html_report(
     commit_url: str,
 ) -> str:
     rows = ""
+    link_separator = "<br/>"
     for build_result, build_log_url, artifact_urls in zip(
         build_results, build_logs_urls, artifact_urls_list
     ):
         row = "<tr>"
         row += f"<td>{build_result.compiler}</td>"
-        if build_result.build_type:
-            row += f"<td>{build_result.build_type}</td>"
-        else:
-            row += "<td>relwithdebuginfo</td>"
+        row += (
+            f"<td>{build_result.build_type}</td>"
+            if build_result.build_type
+            else "<td>relwithdebuginfo</td>"
+        )
         if build_result.sanitizer:
             row += f"<td>{build_result.sanitizer}</td>"
         else:
@@ -508,7 +508,6 @@ def create_build_html_report(
         row += f"<td>{delta}</td>"
 
         links = ""
-        link_separator = "<br/>"
         if artifact_urls:
             for artifact_url in artifact_urls:
                 links += LINK_TEMPLATE.format(

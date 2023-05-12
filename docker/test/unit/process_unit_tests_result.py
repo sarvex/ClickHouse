@@ -17,14 +17,14 @@ def get_test_name(line):
     for element in elements:
         if "(" not in element and ")" not in element:
             return element
-    raise Exception("No test name in line '{}'".format(line))
+    raise Exception(f"No test name in line '{line}'")
 
 
 def process_result(result_folder):
     summary = []
     total_counter = 0
     failed_counter = 0
-    result_log_path = "{}/test_result.txt".format(result_folder)
+    result_log_path = f"{result_folder}/test_result.txt"
     if not os.path.exists(result_log_path):
         logging.info("No output log on path %s", result_log_path)
         return "exception", "No output log", []
@@ -69,8 +69,8 @@ def process_result(result_folder):
         status = "failure"
 
     if not description:
-        description += "fail: {}, passed: {}".format(
-            failed_counter, total_counter - failed_counter
+        description += (
+            f"fail: {failed_counter}, passed: {total_counter - failed_counter}"
         )
 
     return status, description, summary

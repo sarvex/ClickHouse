@@ -62,8 +62,7 @@ def get_pr_for_commit(sha, ref):
                 return pr
             our_prs.append(pr)
         print("Cannot find PR with required ref", ref, "returning first one")
-        first_pr = our_prs[0]
-        return first_pr
+        return our_prs[0]
     except Exception as ex:
         print("Cannot fetch PR info from commit", ex)
     return None
@@ -165,7 +164,7 @@ class PRInfo:
                 )
                 if user_orgs_response.ok:
                     response_json = user_orgs_response.json()
-                    self.user_orgs = set(org["id"] for org in response_json)
+                    self.user_orgs = {org["id"] for org in response_json}
 
             self.diff_urls.append(github_event["pull_request"]["diff_url"])
         elif "commits" in github_event:
@@ -299,10 +298,7 @@ class PRInfo:
         if self.changed_files is None or not self.changed_files:
             return True
 
-        for f in self.changed_files:
-            if "contrib/" in f:
-                return True
-        return False
+        return any("contrib/" in f for f in self.changed_files)
 
     def can_skip_builds_and_use_version_from_master(self):
         # TODO: See a broken loop
@@ -312,16 +308,14 @@ class PRInfo:
         if self.changed_files is None or not self.changed_files:
             return False
 
-        for f in self.changed_files:
-            # TODO: this logic is broken, should be fixed before using
-            if (
+        return not any(
+            (
                 not f.startswith("tests/queries")
                 or not f.startswith("tests/integration")
                 or not f.startswith("tests/performance")
-            ):
-                return False
-
-        return True
+            )
+            for f in self.changed_files
+        )
 
     def can_skip_integration_tests(self):
         # TODO: See a broken loop
@@ -331,14 +325,11 @@ class PRInfo:
         if self.changed_files is None or not self.changed_files:
             return False
 
-        for f in self.changed_files:
-            # TODO: this logic is broken, should be fixed before using
-            if not f.startswith("tests/queries") or not f.startswith(
-                "tests/performance"
-            ):
-                return False
-
-        return True
+        return not any(
+            not f.startswith("tests/queries")
+            or not f.startswith("tests/performance")
+            for f in self.changed_files
+        )
 
     def can_skip_functional_tests(self):
         # TODO: See a broken loop
@@ -348,14 +339,11 @@ class PRInfo:
         if self.changed_files is None or not self.changed_files:
             return False
 
-        for f in self.changed_files:
-            # TODO: this logic is broken, should be fixed before using
-            if not f.startswith("tests/integration") or not f.startswith(
-                "tests/performance"
-            ):
-                return False
-
-        return True
+        return not any(
+            not f.startswith("tests/integration")
+            or not f.startswith("tests/performance")
+            for f in self.changed_files
+        )
 
 
 class FakePRInfo:

@@ -35,10 +35,7 @@ def process_os_check(log_path: str) -> TestResult:
     name = os.path.basename(log_path)
     with open(log_path, "r") as log:
         line = log.read().split("\n")[0].strip()
-        if line != "OK":
-            return TestResult(name, "FAIL")
-        else:
-            return TestResult(name, "OK")
+        return TestResult(name, "FAIL") if line != "OK" else TestResult(name, "OK")
 
 
 def process_glibc_check(log_path: str, max_glibc_version: str) -> TestResults:
@@ -49,9 +46,11 @@ def process_glibc_check(log_path: str, max_glibc_version: str) -> TestResults:
                 columns = line.strip().split(" ")
                 symbol_with_glibc = columns[-2]  # sysconf@GLIBC_2.2.5
                 _, version = symbol_with_glibc.split("@GLIBC_")
-                if version == "PRIVATE":
-                    test_results.append(TestResult(symbol_with_glibc, "FAIL"))
-                elif StrictVersion(version) > max_glibc_version:
+                if (
+                    version == "PRIVATE"
+                    or version != "PRIVATE"
+                    and StrictVersion(version) > max_glibc_version
+                ):
                     test_results.append(TestResult(symbol_with_glibc, "FAIL"))
     if not test_results:
         test_results.append(TestResult("glibc check", "OK"))
@@ -71,10 +70,11 @@ def process_result(
     status = "success"
     description = "Compatibility check passed"
 
-    if check_glibc:
-        if len(test_results) > 1 or test_results[0].status != "OK":
-            status = "failure"
-            description = "glibc check failed"
+    if check_glibc and (
+        len(test_results) > 1 or test_results[0].status != "OK"
+    ):
+        status = "failure"
+        description = "glibc check failed"
 
     if status == "success" and check_distributions:
         for operating_system in ("ubuntu:12.04", "centos:5"):

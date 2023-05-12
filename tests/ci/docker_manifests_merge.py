@@ -96,7 +96,7 @@ def check_sources(to_merge: Dict[str, Images]) -> Images:
             first_suffix = suffix
             result = strip_suffix(suffix, images)
             continue
-        if not result == strip_suffix(suffix, images):
+        if result != strip_suffix(suffix, images):
             raise ValueError(
                 f"images in {images} are not equal to {to_merge[first_suffix]}"
             )
@@ -122,8 +122,7 @@ def merge_images(to_merge: Dict[str, Images]) -> Dict[str, List[List[str]]]:
         merge[image] = []
         for i, v in enumerate(versions):
             merged_v = [v]  # type: List[str]
-            for suf in suffixes:
-                merged_v.append(to_merge[suf][image][i])
+            merged_v.extend(to_merge[suf][image][i] for suf in suffixes)
             merge[image].append(merged_v)
 
     return merge
@@ -180,10 +179,7 @@ def main():
             shell=True,
         )
 
-    to_merge = {}
-    for suf in args.suffixes:
-        to_merge[suf] = load_images(args.path, suf)
-
+    to_merge = {suf: load_images(args.path, suf) for suf in args.suffixes}
     changed_images = get_changed_images(check_sources(to_merge))
 
     os.environ["DOCKER_CLI_EXPERIMENTAL"] = "enabled"

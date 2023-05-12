@@ -93,8 +93,7 @@ def check_memory(memory):
 
 
 def test_http():
-    memory = []
-    memory.append(get_MemoryTracking())
+    memory = [get_MemoryTracking()]
     for _ in range(100):
         http_query(sample_query)
         memory.append(get_MemoryTracking())
@@ -102,8 +101,7 @@ def test_http():
 
 
 def test_tcp_multiple_sessions():
-    memory = []
-    memory.append(get_MemoryTracking())
+    memory = [get_MemoryTracking()]
     for _ in range(100):
         query(sample_query)
         memory.append(get_MemoryTracking())
@@ -111,8 +109,7 @@ def test_tcp_multiple_sessions():
 
 
 def test_tcp_single_session():
-    memory = []
-    memory.append(get_MemoryTracking())
+    memory = [get_MemoryTracking()]
     sample_queries = [
         sample_query,
         "SELECT metric, value FROM system.metrics WHERE metric = 'MemoryTracking'",

@@ -6,7 +6,7 @@ import json
 
 def upload_directory(minio_client, bucket_name, local_path, s3_path):
     result_files = []
-    for local_file in glob.glob(local_path + "/**"):
+    for local_file in glob.glob(f"{local_path}/**"):
         if os.path.isfile(local_file):
             result_local_path = os.path.join(local_path, local_file)
             result_s3_path = os.path.join(s3_path, local_file)
@@ -78,8 +78,8 @@ def prepare_s3_bucket(started_cluster):
         started_cluster.minio_bucket, json.dumps(bucket_read_write_policy)
     )
 
-    started_cluster.minio_restricted_bucket = "{}-with-auth".format(
-        started_cluster.minio_bucket
+    started_cluster.minio_restricted_bucket = (
+        f"{started_cluster.minio_bucket}-with-auth"
     )
     if minio_client.bucket_exists(started_cluster.minio_restricted_bucket):
         minio_client.remove_bucket(started_cluster.minio_restricted_bucket)

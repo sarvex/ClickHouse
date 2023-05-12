@@ -49,7 +49,7 @@ def get_org_team_members(token: str, org: str, team_slug: str) -> set:
     )
     response.raise_for_status()
     data = response.json()
-    return set(m["login"] for m in data)
+    return {m["login"] for m in data}
 
 
 def get_cached_members_keys(members: set) -> Keys:
@@ -107,14 +107,13 @@ def handler(event, context):
     else:
         body = "".join(sorted(keys))
 
-    result = {
+    return {
         "statusCode": 200,
         "headers": {
             "Content-Type": "text/html",
         },
         "body": body,
     }
-    return result
 
 
 if __name__ == "__main__":

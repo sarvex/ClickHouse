@@ -76,15 +76,13 @@ def get_dead_runners_in_ec2(runners: RunnerDescriptions) -> RunnerDescriptions:
             #   i-0faa2ff44edbc147e, i-0eccf2514585045ec, i-0ee4ee53e0daa7d4a,
             #   i-07928f15acd473bad, i-0eaddda81298f9a85' do not exist
             message = e.response["Error"]["Message"]
-            if message.startswith("The instance IDs '") and message.endswith(
-                "' do not exist"
-            ):
-                non_existent = message[18:-14].split(", ")
-                for n in non_existent:
-                    result_to_delete.append(ids.pop(n))
-            else:
+            if not message.startswith(
+                "The instance IDs '"
+            ) or not message.endswith("' do not exist"):
                 raise
 
+            non_existent = message[18:-14].split(", ")
+            result_to_delete.extend(ids.pop(n) for n in non_existent)
     found_instances = set([])
     print("Response", instances_statuses)
     for instances_status in instances_statuses:
@@ -268,17 +266,12 @@ def push_metrics_to_cloudwatch(
     listed_runners: RunnerDescriptions, namespace: str
 ) -> None:
     client = boto3.client("cloudwatch")
-    metrics_data = []
     busy_runners = sum(
         1 for runner in listed_runners if runner.busy and not runner.offline
     )
-    metrics_data.append(
-        {
-            "MetricName": "BusyRunners",
-            "Value": busy_runners,
-            "Unit": "Count",
-        }
-    )
+    metrics_data = [
+        {"MetricName": "BusyRunners", "Value": busy_runners, "Unit": "Count"}
+    ]
     total_active_runners = sum(1 for runner in listed_runners if not runner.offline)
     metrics_data.append(
         {
@@ -323,7 +316,7 @@ def delete_runner(access_token: str, runner: RunnerDescription) -> bool:
     )
     response.raise_for_status()
     print(f"Response code deleting {runner.name} is {response.status_code}")
-    return bool(response.status_code == 204)
+    return response.status_code == 204
 
 
 def main(
@@ -346,7 +339,7 @@ def main(
     for group, group_runners in grouped_runners.items():
         if push_to_cloudwatch:
             print(f"Pushing metrics for group '{group}'")
-            push_metrics_to_cloudwatch(group_runners, "RunnersMetrics/" + group)
+            push_metrics_to_cloudwatch(group_runners, f"RunnersMetrics/{group}")
         else:
             print(group, f"({len(group_runners)})")
             for runner in group_runners:
@@ -359,8 +352,7 @@ def main(
             print("Deleting runner", runner)
             delete_runner(access_token, runner)
 
-        lost_instances = get_lost_ec2_instances(gh_runners)
-        if lost_instances:
+        if lost_instances := get_lost_ec2_instances(gh_runners):
             print("Going to terminate lost runners")
             ids = [i["InstanceId"] for i in lost_instances]
             print("Terminating runners:", ids)

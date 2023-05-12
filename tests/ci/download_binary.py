@@ -61,9 +61,9 @@ def main():
     temp_path = Path(TEMP_PATH)
     temp_path.mkdir(parents=True, exist_ok=True)
     for build in args.build_names:
-        # check if it's in CI_CONFIG
-        config = CI_CONFIG["build_config"][build]  # type: BuildConfig
         if args.rename:
+            # check if it's in CI_CONFIG
+            config = CI_CONFIG["build_config"][build]  # type: BuildConfig
             path = temp_path / f"clickhouse-{config['static_binary_name']}"
         else:
             path = temp_path / "clickhouse"

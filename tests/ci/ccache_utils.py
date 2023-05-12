@@ -76,7 +76,7 @@ def get_ccache_if_not_exists(
         prs_to_check.append(0)
     for pr_number in prs_to_check:
         logging.info("Searching cache for pr %s", pr_number)
-        s3_path_prefix = str(pr_number) + "/ccaches"
+        s3_path_prefix = f"{str(pr_number)}/ccaches"
         all_cache_objects = s3_helper.list_prefix(s3_path_prefix)
         logging.info("Found %s objects for pr %s", len(all_cache_objects), pr_number)
         objects = [obj for obj in all_cache_objects if ccache_name in obj]
@@ -87,9 +87,7 @@ def get_ccache_if_not_exists(
         )
 
         obj = objects[0]
-        # There are multiple possible caches, the newest one ends with .tar.zst
-        zst_cache = [obj for obj in objects if obj.endswith(".tar.zst")]
-        if zst_cache:
+        if zst_cache := [obj for obj in objects if obj.endswith(".tar.zst")]:
             obj = zst_cache[0]
 
         logging.info("Found ccache on path %s", obj)
@@ -125,12 +123,10 @@ def get_ccache_if_not_exists(
 def upload_ccache(path_to_ccache_dir, s3_helper, current_pr_number, temp_path):
     logging.info("Uploading cache %s for pr %s", path_to_ccache_dir, current_pr_number)
     ccache_name = os.path.basename(path_to_ccache_dir)
-    compressed_cache_path = os.path.join(temp_path, ccache_name + ".tar.zst")
+    compressed_cache_path = os.path.join(temp_path, f"{ccache_name}.tar.zst")
     compress_fast(path_to_ccache_dir, compressed_cache_path)
 
-    s3_path = (
-        str(current_pr_number) + "/ccaches/" + os.path.basename(compressed_cache_path)
-    )
+    s3_path = f"{str(current_pr_number)}/ccaches/{os.path.basename(compressed_cache_path)}"
     logging.info("Will upload %s to path %s", compressed_cache_path, s3_path)
     s3_helper.upload_build_file_to_s3(compressed_cache_path, s3_path)
     logging.info("Upload finished")

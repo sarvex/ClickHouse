@@ -74,20 +74,19 @@ def process_test_log(log_path, broken_tests):
                 elif SKIPPED_SIGN in line:
                     skipped += 1
                     test_results.append((test_name, "SKIPPED", test_time, []))
-                else:
-                    if OK_SIGN in line and test_name in broken_tests:
-                        failed += 1
-                        test_results.append(
-                            (
-                                test_name,
-                                "SKIPPED",
-                                test_time,
-                                ["This test passed. Update broken_tests.txt.\n"],
-                            )
+                elif OK_SIGN in line and test_name in broken_tests:
+                    failed += 1
+                    test_results.append(
+                        (
+                            test_name,
+                            "SKIPPED",
+                            test_time,
+                            ["This test passed. Update broken_tests.txt.\n"],
                         )
-                    else:
-                        success += int(OK_SIGN in line)
-                        test_results.append((test_name, "OK", test_time, []))
+                    )
+                else:
+                    success += int(OK_SIGN in line)
+                    test_results.append((test_name, "OK", test_time, []))
                 test_end = False
             elif (
                 len(test_results) > 0 and test_results[-1][1] == "FAIL" and not test_end
@@ -129,8 +128,7 @@ def process_result(result_path, broken_tests):
     test_results = []
     state = "success"
     description = ""
-    files = os.listdir(result_path)
-    if files:
+    if files := os.listdir(result_path):
         logging.info("Find files in result folder %s", ",".join(files))
         result_path = os.path.join(result_path, "test_result.txt")
     else:
@@ -150,7 +148,7 @@ def process_result(result_path, broken_tests):
             retries,
             test_results,
         ) = process_test_log(result_path, broken_tests)
-        is_flacky_check = 1 < int(os.environ.get("NUM_TRIES", 1))
+        is_flacky_check = int(os.environ.get("NUM_TRIES", 1)) > 1
         logging.info("Is flaky check: %s", is_flacky_check)
         # If no tests were run (success == 0) it indicates an error (e.g. server did not start or crashed immediately)
         # But it's Ok for "flaky checks" - they can contain just one test for check which is marked as skipped.
@@ -171,11 +169,11 @@ def process_result(result_path, broken_tests):
         else:
             description = ""
 
-        description += "fail: {}, passed: {}".format(failed, success)
+        description += f"fail: {failed}, passed: {success}"
         if skipped != 0:
-            description += ", skipped: {}".format(skipped)
+            description += f", skipped: {skipped}"
         if unknown != 0:
-            description += ", unknown: {}".format(unknown)
+            description += f", unknown: {unknown}"
     else:
         state = "failure"
         description = "Output log doesn't exist"
@@ -204,7 +202,7 @@ if __name__ == "__main__":
     parser.add_argument("--broken-tests", default="/broken_tests.txt")
     args = parser.parse_args()
 
-    broken_tests = list()
+    broken_tests = []
     if os.path.exists(args.broken_tests):
         logging.info(f"File {args.broken_tests} with broken tests found")
         with open(args.broken_tests) as f:

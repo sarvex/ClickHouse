@@ -46,16 +46,14 @@ def create_table(node, table_name, replica, **additional_settings):
     settings = {
         "storage_policy": "blob_storage_policy",
         "old_parts_lifetime": 1,
-    }
-    settings.update(additional_settings)
-
+    } | additional_settings
     create_table_statement = f"""
         CREATE TABLE {table_name} ON CLUSTER {CLUSTER_NAME} (
             id Int64,
             data String
         ) ENGINE=ReplicatedMergeTree('/clickhouse/tables/{table_name}', '{{replica}}')
         ORDER BY id
-        SETTINGS {",".join((k+"="+repr(v) for k, v in settings.items()))}"""
+        SETTINGS {",".join(f"{k}={repr(v)}" for k, v in settings.items())}"""
 
     node.query(create_table_statement)
     assert node.query(f"SELECT COUNT(*) FROM {table_name} FORMAT Values") == "(0)"
@@ -97,11 +95,11 @@ def test_zero_copy_replication(cluster):
 
     assert (
         node2.query(f"SELECT * FROM {TABLE_NAME} order by id FORMAT Values")
-        == values1 + "," + values2
+        == f"{values1},{values2}"
     )
     assert (
         node1.query(f"SELECT * FROM {TABLE_NAME} order by id FORMAT Values")
-        == values1 + "," + values2
+        == f"{values1},{values2}"
     )
 
     assert get_large_objects_count(blob_container_client) == 2

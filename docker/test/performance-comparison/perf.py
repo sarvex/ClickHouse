@@ -153,11 +153,10 @@ subst_elems = root.findall("substitutions/substitution")
 available_parameters = {}  # { 'table': ['hits_10m', 'hits_100m'], ... }
 for e in subst_elems:
     name = e.find("name").text
-    values = [v.text for v in e.findall("values/value")]
-    if not values:
+    if values := [v.text for v in e.findall("values/value")]:
+        available_parameters[name] = values
+    else:
         raise Exception(f"No values given for substitution {{{name}}}")
-
-    available_parameters[name] = values
 
 
 # Takes parallel lists of templates, substitutes them with all combos of
@@ -171,7 +170,7 @@ def substitute_parameters(query_templates, other_templates=[]):
         # We need stable order of keys here, so that the order of substitutions
         # is always the same, and the query indexes are consistent across test
         # runs.
-        keys = sorted(set(n for _, n, _, _ in string.Formatter().parse(q) if n))
+        keys = sorted({n for _, n, _, _ in string.Formatter().parse(q) if n})
         values = [available_parameters[k] for k in keys]
         combos = itertools.product(*values)
         for c in combos:
@@ -195,7 +194,7 @@ for e in root.findall("query"):
 for i in args.queries_to_run or []:
     if i < 0 or i >= len(test_queries):
         print(
-            f"There is no query no. {i} in this test, only [{0}-{len(test_queries) - 1}] are present"
+            f"There is no query no. {i} in this test, only [0-{len(test_queries) - 1}] are present"
         )
         exit(1)
 
@@ -375,7 +374,7 @@ for query_index in queries_to_run:
             except clickhouse_driver.errors.Error as e:
                 # Add query id to the exception to make debugging easier.
                 e.args = (prewarm_id, *e.args)
-                e.message = prewarm_id + ": " + e.message
+                e.message = f"{prewarm_id}: {e.message}"
                 raise
 
             print(
@@ -400,7 +399,7 @@ for query_index in queries_to_run:
         else:
             no_errors.append(i)
 
-    if len(no_errors) == 0:
+    if not no_errors:
         continue
     elif len(no_errors) < len(all_connections):
         print(f"partial\t{query_index}\t{no_errors}")
@@ -416,11 +415,7 @@ for query_index in queries_to_run:
     profile_seconds = 0
     run = 0
 
-    # Arrays of run times for each connection.
-    all_server_times = []
-    for conn_index, c in enumerate(this_query_connections):
-        all_server_times.append([])
-
+    all_server_times = [[] for _ in this_query_connections]
     while True:
         run_id = f"{query_prefix}.run{run}"
 
@@ -434,7 +429,7 @@ for query_index in queries_to_run:
             except clickhouse_driver.errors.Error as e:
                 # Add query id to the exception to make debugging easier.
                 e.args = (run_id, *e.args)
-                e.message = run_id + ": " + e.message
+                e.message = f"{run_id}: {e.message}"
                 raise
 
             elapsed = c.last_query.elapsed
@@ -511,7 +506,7 @@ for query_index in queries_to_run:
             except clickhouse_driver.errors.Error as e:
                 # Add query id to the exception to make debugging easier.
                 e.args = (run_id, *e.args)
-                e.message = run_id + ": " + e.message
+                e.message = f"{run_id}: {e.message}"
                 raise
 
         run += 1

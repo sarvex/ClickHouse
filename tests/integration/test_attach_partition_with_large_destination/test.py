@@ -23,9 +23,7 @@ def create_force_drop_flag(node):
         [
             "bash",
             "-c",
-            "touch {} && chmod a=rw {}".format(
-                force_drop_flag_path, force_drop_flag_path
-            ),
+            f"touch {force_drop_flag_path} && chmod a=rw {force_drop_flag_path}",
         ],
         user="root",
     )
@@ -35,7 +33,7 @@ def create_force_drop_flag(node):
 def test_attach_partition_with_large_destination(started_cluster, engine):
     # Initialize
     node.query(
-        "CREATE DATABASE db ENGINE={}".format(engine),
+        f"CREATE DATABASE db ENGINE={engine}",
         settings={"allow_deprecated_database_ordinary": 1},
     )
     node.query(

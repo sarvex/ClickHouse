@@ -160,10 +160,7 @@ def main():
     subprocess.check_call(f"sudo chown -R ubuntu:ubuntu {temp_path}", shell=True)
 
     test_output_files = os.listdir(output_path)
-    additional_logs = []
-    for f in test_output_files:
-        additional_logs.append(os.path.join(output_path, f))
-
+    additional_logs = [os.path.join(output_path, f) for f in test_output_files]
     test_log_exists = (
         "test_log.txt" in test_output_files or "test_result.txt" in test_output_files
     )

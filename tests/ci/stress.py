@@ -17,14 +17,14 @@ def get_options(i, upgrade_check):
 
     if i % 3 == 2 and not upgrade_check:
         options.append(
-            '''--db-engine="Replicated('/test/db/test_{}', 's1', 'r1')"'''.format(i)
+            f'''--db-engine="Replicated('/test/db/test_{i}', 's1', 'r1')"'''
         )
         client_options.append("allow_experimental_database_replicated=1")
 
     # If database name is not specified, new database is created for each functional test.
     # Run some threads with one database for all tests.
     if i % 2 == 1:
-        options.append(" --database=test_{}".format(i))
+        options.append(f" --database=test_{i}")
 
     if i % 3 == 1:
         client_options.append("join_use_nulls=1")
@@ -41,13 +41,11 @@ def get_options(i, upgrade_check):
             # Some crashes are not fixed in 23.2 yet, so ignore the setting in Upgrade check
             client_options.append("join_algorithm='grace_hash'")
         if join_alg_num % 5 == 4:
-            client_options.append("join_algorithm='auto'")
-            client_options.append("max_rows_in_join=1000")
-
+            client_options.extend(("join_algorithm='auto'", "max_rows_in_join=1000"))
     if i > 0 and random.random() < 1 / 3:
-        client_options.append("allow_experimental_query_cache=1")
-        client_options.append("use_query_cache=1")
-
+        client_options.extend(
+            ("allow_experimental_query_cache=1", "use_query_cache=1")
+        )
     if i % 5 == 1:
         client_options.append("memory_tracker_fault_probability=0.001")
 
@@ -56,9 +54,12 @@ def get_options(i, upgrade_check):
 
     # 12 % 3 == 0, so it's Atomic database
     if i == 12 and not upgrade_check:
-        client_options.append("implicit_transaction=1")
-        client_options.append("throw_on_unsupported_query_inside_transaction=0")
-
+        client_options.extend(
+            (
+                "implicit_transaction=1",
+                "throw_on_unsupported_query_inside_transaction=0",
+            )
+        )
     if client_options:
         options.append(" --client-option " + " ".join(client_options))
 
@@ -76,22 +77,16 @@ def run_func_test(
     upgrade_check_option = "--upgrade-check" if upgrade_check else ""
     global_time_limit_option = ""
     if global_time_limit:
-        global_time_limit_option = "--global_time_limit={}".format(global_time_limit)
+        global_time_limit_option = f"--global_time_limit={global_time_limit}"
 
     output_paths = [
-        os.path.join(output_prefix, "stress_test_run_{}.txt".format(i))
+        os.path.join(output_prefix, f"stress_test_run_{i}.txt")
         for i in range(num_processes)
     ]
     pipes = []
     for i, path in enumerate(output_paths):
         f = open(path, "w")
-        full_command = "{} {} {} {} {}".format(
-            cmd,
-            get_options(i, upgrade_check),
-            global_time_limit_option,
-            skip_tests_option,
-            upgrade_check_option,
-        )
+        full_command = f"{cmd} {get_options(i, upgrade_check)} {global_time_limit_option} {skip_tests_option} {upgrade_check_option}"
         logging.info("Run func tests '%s'", full_command)
         p = Popen(full_command, shell=True, stdout=f, stderr=f)
         pipes.append(p)
@@ -279,10 +274,7 @@ if __name__ == "__main__":
 
     logging.info("Will wait functests to finish")
     while True:
-        retcodes = []
-        for p in func_pipes:
-            if p.poll() is not None:
-                retcodes.append(p.returncode)
+        retcodes = [p.returncode for p in func_pipes if p.poll() is not None]
         if len(retcodes) == len(func_pipes):
             break
         logging.info("Finished %s from %s processes", len(retcodes), len(func_pipes))

@@ -25,7 +25,7 @@ def parse_args():
 def post_commit_status_from_file(file_path: str) -> List[str]:
     with open(file_path, "r", encoding="utf-8") as f:
         res = list(csv.reader(f, delimiter="\t"))
-    if len(res) < 1:
+    if not res:
         raise Exception(f'Can\'t read from "{file_path}"')
     if len(res[0]) != 3:
         raise Exception(f'Can\'t read from "{file_path}"')

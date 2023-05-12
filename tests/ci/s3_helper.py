@@ -94,9 +94,9 @@ class S3Helper:
                 logging.info(
                     "Going to compress file log file %s to %s",
                     file_path,
-                    file_path + ".zst",
+                    f"{file_path}.zst",
                 )
-                compress_file_fast(file_path, file_path + ".zst")
+                compress_file_fast(file_path, f"{file_path}.zst")
                 file_path += ".zst"
                 s3_path += ".zst"
             else:
@@ -213,7 +213,7 @@ class S3Helper:
         def task(file_name):
             full_fs_path = os.path.join(folder_path, file_name)
             if keep_dirs_in_s3_path:
-                full_s3_path = s3_folder_path + "/" + os.path.basename(folder_path)
+                full_s3_path = f"{s3_folder_path}/{os.path.basename(folder_path)}"
             else:
                 full_s3_path = s3_folder_path
 
@@ -230,21 +230,25 @@ class S3Helper:
                 if upload_symlinks:
                     if CI:
                         return self._upload_file_to_s3(
-                            bucket_name, full_fs_path, full_s3_path + "/" + file_name
+                            bucket_name,
+                            full_fs_path,
+                            f"{full_s3_path}/{file_name}",
                         )
                     else:
                         return S3Helper.copy_file_to_local(
-                            bucket_name, full_fs_path, full_s3_path + "/" + file_name
+                            bucket_name,
+                            full_fs_path,
+                            f"{full_s3_path}/{file_name}",
                         )
                 return []
 
             if CI:
                 return self._upload_file_to_s3(
-                    bucket_name, full_fs_path, full_s3_path + "/" + file_name
+                    bucket_name, full_fs_path, f"{full_s3_path}/{file_name}"
                 )
             else:
                 return S3Helper.copy_file_to_local(
-                    bucket_name, full_fs_path, full_s3_path + "/" + file_name
+                    bucket_name, full_fs_path, f"{full_s3_path}/{file_name}"
                 )
 
         return sorted(_flatten_list(list(p.map(task, files))))
@@ -283,9 +287,7 @@ class S3Helper:
         objects = self.client.list_objects_v2(Bucket=bucket, Prefix=s3_prefix_path)
         result = []
         if "Contents" in objects:
-            for obj in objects["Contents"]:
-                result.append(obj["Key"])
-
+            result.extend(obj["Key"] for obj in objects["Contents"])
         return result
 
     def exists(self, key, bucket=S3_BUILDS_BUCKET):

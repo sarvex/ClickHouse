@@ -118,9 +118,8 @@ class ClickHouseHelper:
                 + ": HTTP code "
                 + str(response.status_code)
                 + ": '"
-                + str(response.text)
-                + "'"
-            )
+                + response.text
+            ) + "'"
 
             if response.status_code >= 500:
                 # A retriable error
@@ -152,10 +151,7 @@ class ClickHouseHelper:
                 raise
 
     def insert_events_into(self, db, table, events, safe=True):
-        jsons = []
-        for event in events:
-            jsons.append(json.dumps(event))
-
+        jsons = [json.dumps(event) for event in events]
         try:
             self._insert_json_str_info(db, table, ",".join(jsons))
         except InsertException as e:
@@ -187,11 +183,7 @@ class ClickHouseHelper:
 
     def select_json_each_row(self, db, query):
         text = self._select_and_get_json_each_row(db, query)
-        result = []
-        for line in text.split("\n"):
-            if line:
-                result.append(json.loads(line))
-        return result
+        return [json.loads(line) for line in text.split("\n") if line]
 
 
 ### VENDORING END

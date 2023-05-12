@@ -25,9 +25,7 @@ class TextValue:
     def get_slug(self):
         if self.slug is not None:
             return self.slug
-        slug = ""
-        for c in self.t:
-            slug += c if c in string.ascii_letters else "_"
+        slug = "".join(c if c in string.ascii_letters else "_" for c in self.t)
         self.slug = slug
         return slug
 
@@ -126,9 +124,7 @@ class Parser:
                 self.col = 0
             self.text = self.text[1:]
             self.col += 1
-        if not self.text:
-            return None
-        return True
+        return None if not self.text else True
 
     def skip_line(self):
         self.line += 1
@@ -160,14 +156,13 @@ class Parser:
         return True
 
     def generate(self):
-        self.proto = 'syntax = "proto3";\n\n'
         self.cpp = "#include <iostream>\n#include <string>\n#include <vector>\n\n#include <libfuzzer/libfuzzer_macro.h>\n\n"
 
         for incl_file in self.includes:
             self.cpp += f'#include "{incl_file}"\n'
         self.cpp += "\n"
 
-        self.proto += "message Word {\n"
+        self.proto = 'syntax = "proto3";\n\n' + "message Word {\n"
         self.proto += "\tenum Value {\n"
 
         self.cpp += "void GenerateWord(const Word&, std::string&, int);\n\n"
@@ -222,7 +217,7 @@ def main(args):
     if not outfile_proto.endswith(".proto"):
         raise Exception("outfile_proto (argv[3]) should end with `.proto`")
 
-    include_filename = outfile_proto[:-6] + ".pb.h"
+    include_filename = f"{outfile_proto[:-6]}.pb.h"
 
     p = Parser()
     p.add_include(include_filename)

@@ -66,8 +66,7 @@ class SSHAgent:
             self._keys.pop(key_pub)
 
     def print_keys(self):
-        keys = self._run(["ssh-add", "-l"]).splitlines()
-        if keys:
+        if keys := self._run(["ssh-add", "-l"]).splitlines():
             logging.info("ssh-agent keys:")
             for key in keys:
                 logging.info("%s", key)
@@ -118,10 +117,7 @@ class SSHKey:
             raise Exception("Either key_name or key_value must be specified")
         if key_name is not None and key_value is not None:
             raise Exception("key_name or key_value must be specified")
-        if key_name is not None:
-            self.key = os.getenv(key_name)
-        else:
-            self.key = key_value
+        self.key = os.getenv(key_name) if key_name is not None else key_value
         self._key_pub = None
         self._ssh_agent = SSHAgent()
 

@@ -56,9 +56,7 @@ def start_mock_servers(cluster, script_dir, mocks, timeout=100):
             elif time.time() - start_time > timeout:
                 assert (
                     ping_response == "OK"
-                ), 'Expected "OK", but got "{}" from {}'.format(
-                    ping_response, server_name
-                )
+                ), f'Expected "OK", but got "{ping_response}" from {server_name}'
 
         if mocks_to_check:
             time.sleep(1)

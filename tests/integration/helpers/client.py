@@ -96,7 +96,7 @@ class Client:
 
         if settings is not None:
             for setting, value in settings.items():
-                command += ["--" + setting, str(value)]
+                command += [f"--{setting}", str(value)]
 
         if user is not None:
             command += ["--user", user]
@@ -232,9 +232,7 @@ class CommandRequest:
             self.process.returncode != 0 or self.remove_trash_from_stderr(stderr)
         ) and not self.ignore_error:
             raise QueryRuntimeException(
-                "Client failed! Return code: {}, stderr: {}".format(
-                    self.process.returncode, stderr
-                ),
+                f"Client failed! Return code: {self.process.returncode}, stderr: {stderr}",
                 self.process.returncode,
                 stderr,
             )
@@ -258,7 +256,7 @@ class CommandRequest:
 
         if self.process.returncode == 0:
             raise QueryRuntimeException(
-                "Client expected to be failed but succeeded! stdout: {}".format(stdout),
+                f"Client expected to be failed but succeeded! stdout: {stdout}",
                 self.process.returncode,
                 stderr,
             )

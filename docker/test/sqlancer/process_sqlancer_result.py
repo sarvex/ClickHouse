@@ -22,16 +22,15 @@ def process_result(result_folder):
     failed_tests = []
 
     for test in tests:
-        err_path = "{}/{}.err".format(result_folder, test)
-        out_path = "{}/{}.out".format(result_folder, test)
+        err_path = f"{result_folder}/{test}.err"
+        out_path = f"{result_folder}/{test}.out"
         if not os.path.exists(err_path):
             logging.info("No output err on path %s", err_path)
             summary.append((test, "SKIPPED"))
         elif not os.path.exists(out_path):
             logging.info("No output log on path %s", out_path)
         else:
-            paths.append(err_path)
-            paths.append(out_path)
+            paths.extend((err_path, out_path))
             with open(err_path, "r") as f:
                 if "AssertionError" in f.read():
                     summary.append((test, "FAIL"))
@@ -40,12 +39,12 @@ def process_result(result_folder):
                 else:
                     summary.append((test, "OK"))
 
-    stdout_path = "{}/stdout.log".format(result_folder)
+    stdout_path = f"{result_folder}/stdout.log"
     if not os.path.exists(stdout_path):
         logging.info("No stdout log on path %s", stdout_path)
     else:
         paths.append(stdout_path)
-    stderr_path = "{}/stderr.log".format(result_folder)
+    stderr_path = f"{result_folder}/stderr.log"
     if not os.path.exists(stderr_path):
         logging.info("No stderr log on path %s", stderr_path)
     else:

@@ -61,7 +61,7 @@ def check_data(nodes, detached_parts):
         for i in range(10):
             assert_eq_with_retry(
                 node,
-                "SELECT count() FROM test WHERE n % 10 == " + str(i),
+                f"SELECT count() FROM test WHERE n % 10 == {str(i)}",
                 "0\n" if i in detached_parts else "10\n",
             )
 

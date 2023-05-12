@@ -12,10 +12,7 @@ from typing import List, Optional
 class DockerImage:
     def __init__(self, name: str, version: Optional[str] = None):
         self.name = name
-        if version is None:
-            self.version = "latest"
-        else:
-            self.version = version
+        self.version = "latest" if version is None else version
 
     def __str__(self):
         return f"{self.name}:{self.version}"

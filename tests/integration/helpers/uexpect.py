@@ -37,10 +37,10 @@ class ExpectTimeoutError(Exception):
     def __str__(self):
         s = "Timeout %.3fs " % float(self.timeout)
         if self.pattern:
-            s += "for %s " % repr(self.pattern.pattern)
+            s += f"for {repr(self.pattern.pattern)} "
         if self.buffer:
-            s += "buffer %s " % repr(self.buffer[:])
-            s += "or '%s'" % ",".join(["%x" % ord(c) for c in self.buffer[:]])
+            s += f"buffer {repr(self.buffer[:])} "
+            s += f"""or '{",".join(["%x" % ord(c) for c in self.buffer[:]])}'"""
         return s
 
 
@@ -177,7 +177,6 @@ class IO(object):
                 return data
             if raise_exception:
                 raise TimeoutError(timeout)
-            pass
         if not data and raise_exception:
             raise TimeoutError(timeout)
 

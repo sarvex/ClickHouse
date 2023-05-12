@@ -10,10 +10,7 @@ def removesuffix(text, suffix):
     Added in python 3.9
     https://www.python.org/dev/peps/pep-0616/
     """
-    if suffix and text.endswith(suffix):
-        return text[: -len(suffix)]
-    else:
-        return text[:]
+    return text[: -len(suffix)] if suffix and text.endswith(suffix) else text[:]
 
 
 def render_test_template(j2env, suite_dir, test_name):
@@ -23,15 +20,15 @@ def render_test_template(j2env, suite_dir, test_name):
 
     test_base_name = removesuffix(test_name, ".sql.j2")
 
-    reference_file_name = test_base_name + ".reference.j2"
+    reference_file_name = f"{test_base_name}.reference.j2"
     reference_file_path = os.path.join(suite_dir, reference_file_name)
     if os.path.isfile(reference_file_path):
         tpl = j2env.get_template(reference_file_name)
-        tpl.stream().dump(os.path.join(suite_dir, test_base_name) + ".gen.reference")
+        tpl.stream().dump(f"{os.path.join(suite_dir, test_base_name)}.gen.reference")
 
     if test_name.endswith(".sql.j2"):
         tpl = j2env.get_template(test_name)
-        generated_test_name = test_base_name + ".gen.sql"
+        generated_test_name = f"{test_base_name}.gen.sql"
         tpl.stream().dump(os.path.join(suite_dir, generated_test_name))
         return generated_test_name
 

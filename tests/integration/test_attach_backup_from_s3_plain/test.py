@@ -21,15 +21,9 @@ def start_cluster():
         cluster.shutdown()
 
 
-@pytest.mark.parametrize(
-    "table_name,backup_name,storage_policy,min_bytes_for_wide_part",
-    [
-        pytest.param(
+@pytest.mark.parametrize("table_name,backup_name,storage_policy,min_bytes_for_wide_part", [pytest.param(
             "compact", "backup_compact", "s3_backup_compact", int(1e9), id="compact"
-        ),
-        pytest.param("wide", "backup_wide", "s3_backup_wide", int(0), id="wide"),
-    ],
-)
+        ), pytest.param("wide", "backup_wide", "s3_backup_wide", 0, id="wide")])
 def test_attach_part(table_name, backup_name, storage_policy, min_bytes_for_wide_part):
     node.query(
         f"""
@@ -63,7 +57,7 @@ def test_attach_part(table_name, backup_name, storage_policy, min_bytes_for_wide
     assert int(node.query(f"select count() from ordinary_db.{table_name}")) == 100
 
     node.query(
-        f"""
+        """
     -- NOTE: DROP DATABASE cannot be done w/o this due to metadata leftovers
     set force_remove_data_recursively_on_drop=1;
     drop database ordinary_db sync;

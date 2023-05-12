@@ -26,10 +26,7 @@ def checkInt(str):
 
 
 def setup_client(index):
-    if index < 4:
-        port_idx = index
-    else:
-        port_idx = index + 4
+    port_idx = index if index < 4 else index + 4
     client = Client(
         host="localhost",
         database="default",
@@ -49,8 +46,8 @@ def warm_client(clientN, clientL, query, loop):
 
 
 def read_queries(queries_list):
-    queries = list()
-    queries_id = list()
+    queries = []
+    queries_id = []
     with open(queries_list, "r") as f:
         for line in f:
             line = line.rstrip()
@@ -62,7 +59,7 @@ def read_queries(queries_list):
 
 def run_task(client, cname, query, loop, query_latency):
     start_time = time.time()
-    for i in range(loop):
+    for _ in range(loop):
         client.execute(query)
         query_latency.append(client.last_query.elapsed)
 
@@ -132,7 +129,7 @@ def run_multi_clients(clientN, clientList, query, loop):
         else:
             print("ERROR: CLIENT number dismatch!!")
             exit()
-        print("CLIENT: %s start" % client_name)
+        print(f"CLIENT: {client_name} start")
         client_pids[c_idx].start()
 
     for c_idx in range(clientN):
@@ -140,32 +137,22 @@ def run_multi_clients(clientN, clientList, query, loop):
     end_time = time.time()
     totalT = end_time - start_time
 
-    query_latencyTotal = list()
-    for item in query_latency_list0:
-        query_latencyTotal.append(item)
-    for item in query_latency_list1:
-        query_latencyTotal.append(item)
-    for item in query_latency_list2:
-        query_latencyTotal.append(item)
-    for item in query_latency_list3:
-        query_latencyTotal.append(item)
-    for item in query_latency_list4:
-        query_latencyTotal.append(item)
-    for item in query_latency_list5:
-        query_latencyTotal.append(item)
-    for item in query_latency_list6:
-        query_latencyTotal.append(item)
-    for item in query_latency_list7:
-        query_latencyTotal.append(item)
-
+    query_latencyTotal = list(query_latency_list0)
+    query_latencyTotal.extend(iter(query_latency_list1))
+    query_latencyTotal.extend(iter(query_latency_list2))
+    query_latencyTotal.extend(iter(query_latency_list3))
+    query_latencyTotal.extend(iter(query_latency_list4))
+    query_latencyTotal.extend(iter(query_latency_list5))
+    query_latencyTotal.extend(iter(query_latency_list6))
+    query_latencyTotal.extend(iter(query_latency_list7))
     totalP95 = np.percentile(query_latencyTotal, 95) * 1000
     return totalT, totalP95
 
 
 def run_task_caculated(client, cname, query, loop):
-    query_latency = list()
+    query_latency = []
     start_time = time.time()
-    for i in range(loop):
+    for _ in range(loop):
         client.execute(query)
         query_latency.append(client.last_query.elapsed)
     end_time = time.time()
@@ -185,14 +172,13 @@ def run_multi_clients_caculated(clientN, clientList, query, loop):
     for c_idx in range(clientN):
         client_pids[c_idx].join()
     end_time = time.time()
-    totalT = end_time - start_time
-    return totalT
+    return end_time - start_time
 
 
 if __name__ == "__main__":
     client_number = 1
-    queries = list()
-    queries_id = list()
+    queries = []
+    queries_id = []
 
     if len(sys.argv) != 3:
         print(
@@ -216,11 +202,9 @@ if __name__ == "__main__":
             print("client_number should be in [1~%d]" % max_instances_number)
             sys.exit()
 
-    client_list = {}
     queries_id, queries = read_queries(queries_list)
 
-    for c_idx in range(client_number):
-        client_list[c_idx] = setup_client(c_idx)
+    client_list = {c_idx: setup_client(c_idx) for c_idx in range(client_number)}
     # clear cache
     os.system("sync; echo 3 > /proc/sys/vm/drop_caches")
 
@@ -229,8 +213,7 @@ if __name__ == "__main__":
         warm_client(client_number, client_list, i, 1)
     print("###Polit Run End -> Start stressing....")
 
-    query_index = 0
-    for q in queries:
+    for query_index, q in enumerate(queries):
         print(
             "\n###START -> Index: %d, ID: %s, Query: %s"
             % (query_index, queries_id[query_index], q)
@@ -274,5 +257,4 @@ if __name__ == "__main__":
                 ((curr_loop * client_number) / totalT),
             )
         )
-        query_index += 1
     print("###Finished!")

@@ -16,7 +16,7 @@ logging.raiseExceptions = False
 def cleanup_environment():
     try:
         if int(os.environ.get("PYTEST_CLEANUP_CONTAINERS", 0)) == 1:
-            logging.debug(f"Cleaning all iptables rules")
+            logging.debug("Cleaning all iptables rules")
             _NetworkManager.clean_all_user_iptables_rules()
         result = run_and_check(["docker ps | wc -l"], shell=True)
         if int(result) > 1:
@@ -28,12 +28,12 @@ def cleanup_environment():
             else:
                 logging.debug("Trying to kill unstopped containers...")
                 run_and_check(
-                    [f"docker kill $(docker container list  --all  --quiet)"],
+                    ["docker kill $(docker container list  --all  --quiet)"],
                     shell=True,
                     nothrow=True,
                 )
                 run_and_check(
-                    [f"docker rm $docker container list  --all  --quiet)"],
+                    ["docker rm $docker container list  --all  --quiet)"],
                     shell=True,
                     nothrow=True,
                 )
@@ -41,11 +41,9 @@ def cleanup_environment():
                 r = run_and_check(["docker-compose", "ps", "--services", "--all"])
                 logging.debug(f"Docker ps before start:{r.stdout}")
         else:
-            logging.debug(f"No running containers")
+            logging.debug("No running containers")
     except Exception as e:
         logging.exception(f"cleanup_environment:{str(e)}")
-        pass
-
     yield
 
 

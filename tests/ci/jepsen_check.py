@@ -69,23 +69,21 @@ def get_autoscaling_group_instances_ids(asg_client, group_name):
         AutoScalingGroupNames=[group_name]
     )
     our_group = group_description["AutoScalingGroups"][0]
-    instance_ids = []
-    for instance in our_group["Instances"]:
+    return [
+        instance["InstanceId"]
+        for instance in our_group["Instances"]
         if (
             instance["LifecycleState"] == "InService"
             and instance["HealthStatus"] == "Healthy"
-        ):
-            instance_ids.append(instance["InstanceId"])
-
-    return instance_ids
+        )
+    ]
 
 
 def get_instances_addresses(ec2_client, instance_ids):
     ec2_response = ec2_client.describe_instances(InstanceIds=instance_ids)
     instance_ips = []
     for instances in ec2_response["Reservations"]:
-        for ip in instances["Instances"]:
-            instance_ips.append(ip["PrivateIpAddress"])
+        instance_ips.extend(ip["PrivateIpAddress"] for ip in instances["Instances"])
     return instance_ips
 
 
@@ -160,7 +158,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    if args.program != "server" and args.program != "keeper":
+    if args.program not in ["server", "keeper"]:
         logging.warning("Invalid argument '%s'", args.program)
         sys.exit(0)
 

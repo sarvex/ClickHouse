@@ -85,18 +85,10 @@ def run_docker_image_with_env(
     output_dir.mkdir(parents=True, exist_ok=True)
     env_part = " -e ".join(env_variables)
     if env_part:
-        env_part = " -e " + env_part
+        env_part = f" -e {env_part}"
 
-    if sys.stdout.isatty():
-        interactive = "-it"
-    else:
-        interactive = ""
-
-    if as_root:
-        user = "0:0"
-    else:
-        user = f"{os.geteuid()}:{os.getegid()}"
-
+    interactive = "-it" if sys.stdout.isatty() else ""
+    user = "0:0" if as_root else f"{os.geteuid()}:{os.getegid()}"
     ccache_mount = f"--volume={ccache_dir}:/ccache"
     if ccache_dir is None:
         ccache_mount = ""
@@ -113,7 +105,7 @@ def run_docker_image_with_env(
 
 
 def is_release_build(build_type: str, package_type: str, sanitizer: str) -> bool:
-    return build_type == "" and package_type == "deb" and sanitizer == ""
+    return not build_type and package_type == "deb" and not sanitizer
 
 
 def parse_env_variables(

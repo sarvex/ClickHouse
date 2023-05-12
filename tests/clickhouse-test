@@ -77,11 +77,10 @@ def trim_for_log(s):
     if not s:
         return s
     lines = s.splitlines()
-    if len(lines) > 10000:
-        separator = "-" * 40 + str(len(lines) - 10000) + " lines are hidden" + "-" * 40
-        return "\n".join(lines[:5000] + [] + [separator] + [] + lines[-5000:])
-    else:
+    if len(lines) <= 10000:
         return "\n".join(lines)
+    separator = "-" * 40 + str(len(lines) - 10000) + " lines are hidden" + "-" * 40
+    return "\n".join(lines[:5000] + [] + [separator] + [] + lines[-5000:])
 
 
 class HTTPError(Exception):
@@ -128,7 +127,7 @@ def clickhouse_execute_http(
         "output_format_parallel_formatting": 0,
     }
     if settings is not None:
-        params.update(settings)
+        params |= settings
     if default_format is not None:
         params["default_format"] = default_format
 
@@ -175,20 +174,17 @@ def clickhouse_execute(
 def clickhouse_execute_json(
     base_args, query, timeout=60, settings=None, max_http_retries=5
 ):
-    data = clickhouse_execute_http(
+    if data := clickhouse_execute_http(
         base_args,
         query,
         timeout,
         settings,
         "JSONEachRow",
         max_http_retries=max_http_retries,
-    )
-    if not data:
+    ):
+        return [json.loads(row) for row in data.strip().splitlines()]
+    else:
         return None
-    rows = []
-    for row in data.strip().splitlines():
-        rows.append(json.loads(row))
-    return rows
 
 
 class Terminated(KeyboardInterrupt):
@@ -229,13 +225,11 @@ def get_db_engine(args, database_name):
         return f" ON CLUSTER test_cluster_database_replicated \
             ENGINE=Replicated('/test/clickhouse/db/{database_name}', \
             '{{shard}}', '{{replica}}')"
-    if args.db_engine:
-        return " ENGINE=" + args.db_engine
-    return ""  # Will use default engine
+    return f" ENGINE={args.db_engine}" if args.db_engine else ""
 
 
 def get_create_database_settings(args, testcase_args):
-    create_database_settings = dict()
+    create_database_settings = {}
     if testcase_args:
         create_database_settings["log_comment"] = testcase_args.testcase_basename
     if args.db_engine == "Ordinary":
@@ -323,7 +317,7 @@ def get_processlist_with_stacktraces(args):
                 },
             )
     except Exception as e:
-        return "Failed to get processlist: " + str(e)
+        return f"Failed to get processlist: {str(e)}"
 
 
 def get_transactions_list(args):
@@ -629,11 +623,11 @@ class MergeTreeSettingsRandomizer:
 
     @staticmethod
     def get_random_settings(args):
-        random_settings = []
-        for setting, generator in MergeTreeSettingsRandomizer.settings.items():
-            if setting not in args.changed_merge_tree_settings:
-                random_settings.append(f"{setting}={generator()}")
-        return random_settings
+        return [
+            f"{setting}={generator()}"
+            for setting, generator in MergeTreeSettingsRandomizer.settings.items()
+            if setting not in args.changed_merge_tree_settings
+        ]
 
 
 class TestResult:
@@ -668,8 +662,7 @@ class TestCase:
         exc_type, exc_value, tb = exc_info
         exc_name = exc_type.__name__
         traceback_str = "\n".join(traceback.format_tb(tb, 10))
-        description = f"\n{exc_name}\n{exc_value}\n{traceback_str}"
-        return description
+        return f"\n{exc_name}\n{exc_value}\n{traceback_str}"
 
     @staticmethod
     def get_reference_file(suite_dir, name):
@@ -736,9 +729,7 @@ class TestCase:
         # so it is installed in configure_testcase_args() unlike other files
         # (stdout_file, stderr_file) in TestCase::__init__().
         # Since using CLICKHOUSE_TMP is easier to use in expect.
-        testcase_args.debug_log_file = (
-            os.path.join(testcase_args.test_tmp_dir, testcase_basename) + ".debuglog"
-        )
+        testcase_args.debug_log_file = f"{os.path.join(testcase_args.test_tmp_dir, testcase_basename)}.debuglog"
 
         return testcase_args
 
@@ -755,9 +746,9 @@ class TestCase:
             if len(self.base_url_params) == 0:
                 os.environ["CLICKHOUSE_URL_PARAMS"] = "&".join(self.random_settings)
             else:
-                os.environ["CLICKHOUSE_URL_PARAMS"] = (
-                    self.base_url_params + "&" + "&".join(self.random_settings)
-                )
+                os.environ[
+                    "CLICKHOUSE_URL_PARAMS"
+                ] = f"{self.base_url_params}&" + "&".join(self.random_settings)
 
             new_options += f" {self.cli_format_settings(self.random_settings)}"
 
@@ -809,14 +800,13 @@ class TestCase:
 
         has_no_random_settings_tag = self.tags and "no-random-settings" in self.tags
 
-        self.randomize_settings = not (
-            args.no_random_settings or has_no_random_settings_tag
-        )
-
         has_no_random_merge_tree_settings_tag = (
             self.tags and "no-random-merge-tree-settings" in self.tags
         )
 
+        self.randomize_settings = (
+            not args.no_random_settings and not has_no_random_settings_tag
+        )
         # If test contains SHOW CREATE TABLE do not
         # randomize merge tree settings, because
         # they will be added to table definition and test will fail
@@ -835,17 +825,9 @@ class TestCase:
                 MergeTreeSettingsRandomizer.get_random_settings(args)
             )
 
-        self.base_url_params = (
-            os.environ["CLICKHOUSE_URL_PARAMS"]
-            if "CLICKHOUSE_URL_PARAMS" in os.environ
-            else ""
-        )
+        self.base_url_params = os.environ.get("CLICKHOUSE_URL_PARAMS", "")
 
-        self.base_client_options = (
-            os.environ["CLICKHOUSE_CLIENT_OPT"]
-            if "CLICKHOUSE_CLIENT_OPT" in os.environ
-            else ""
-        )
+        self.base_client_options = os.environ.get("CLICKHOUSE_CLIENT_OPT", "")
 
     # should skip test, should increment skipped_total, skip reason
     def should_skip_test(self, suite) -> Optional[FailureReason]:
@@ -855,7 +837,7 @@ class TestCase:
             return FailureReason.DISABLED
 
         elif (
-            os.path.exists(os.path.join(suite.suite_path, self.name) + ".disabled")
+            os.path.exists(f"{os.path.join(suite.suite_path, self.name)}.disabled")
             and not args.disabled
         ):
             return FailureReason.DISABLED
@@ -897,10 +879,7 @@ class TestCase:
         elif tags and ("no-replicated-database" in tags) and args.replicated_database:
             return FailureReason.REPLICATED_DB
 
-        # TODO: remove checking "no-upgrade-check" after 23.1
-        elif args.upgrade_check and (
-            "no-upgrade-check" in tags or "no-upgrade-check" in tags
-        ):
+        elif args.upgrade_check and "no-upgrade-check" in tags:
             return FailureReason.NO_UPGRADE_CHECK
 
         elif tags and ("no-s3-storage" in tags) and args.s3_storage:
@@ -908,7 +887,7 @@ class TestCase:
 
         elif tags:
             for build_flag in args.build_flags:
-                if "no-" + build_flag in tags:
+                if f"no-{build_flag}" in tags:
                     return FailureReason.BUILD
             for tag in tags:
                 tag = tag.replace("-", "_")
@@ -1034,11 +1013,9 @@ class TestCase:
                 description,
             )
 
-        result_is_different = subprocess.call(
+        if result_is_different := subprocess.call(
             ["diff", "-q", self.reference_file, self.stdout_file], stdout=PIPE
-        )
-
-        if result_is_different:
+        ):
             diff = Popen(
                 [
                     "diff",
@@ -1052,9 +1029,8 @@ class TestCase:
             ).communicate()[0]
             if diff.startswith("Binary files "):
                 diff += "Content of stdout:\n===================\n"
-                file = open(self.stdout_file, "r")
-                diff += str(file.read())
-                file.close()
+                with open(self.stdout_file, "r") as file:
+                    diff += str(file.read())
                 diff += "==================="
             description += f"\n{diff}\n"
             if debug_log:
@@ -1096,10 +1072,7 @@ class TestCase:
 
     @staticmethod
     def print_test_time(test_time) -> str:
-        if args.print_time:
-            return f" {test_time:.2f} sec."
-        else:
-            return ""
+        return f" {test_time:.2f} sec." if args.print_time else ""
 
     def process_result(self, result: TestResult, messages):
         description_full = messages[result.status]
@@ -1112,7 +1085,7 @@ class TestCase:
         description_full += "\n"
 
         if result.status == TestStatus.FAIL and self.testcase_args:
-            description_full += "Database: " + self.testcase_args.testcase_database
+            description_full += f"Database: {self.testcase_args.testcase_database}"
 
         result.description = description_full
         return result
@@ -1138,7 +1111,7 @@ class TestCase:
         os.environ["CLICKHOUSE_LOG_COMMENT"] = args.testcase_basename
 
         params = {
-            "client": client + " --database=" + database,
+            "client": f"{client} --database={database}",
             "logs_level": server_logs_level,
             "options": client_options,
             "test": self.case_file,
@@ -1186,7 +1159,7 @@ class TestCase:
             seconds_left = max(
                 args.timeout - (datetime.now() - start_time).total_seconds(), 20
             )
-            drop_database_query = "DROP DATABASE IF EXISTS " + database
+            drop_database_query = f"DROP DATABASE IF EXISTS {database}"
             if args.replicated_database:
                 drop_database_query += " ON CLUSTER test_cluster_database_replicated"
 
@@ -1325,7 +1298,7 @@ class TestSuite:
 
         reverse = 1 if args.order == "asc" else -1
 
-        if -1 == item.find("_"):
+        if "_" not in item:
             return 99998
 
         prefix, _ = item.split("_", 1)
@@ -1346,17 +1319,15 @@ class TestSuite:
 
         test_base_name = removesuffix(test_name, ".sql.j2", ".sql")
 
-        reference_file_name = test_base_name + ".reference.j2"
+        reference_file_name = f"{test_base_name}.reference.j2"
         reference_file_path = os.path.join(suite_dir, reference_file_name)
         if os.path.isfile(reference_file_path):
             tpl = j2env.get_template(reference_file_name)
-            tpl.stream().dump(
-                os.path.join(suite_dir, test_base_name) + ".gen.reference"
-            )
+            tpl.stream().dump(f"{os.path.join(suite_dir, test_base_name)}.gen.reference")
 
         if test_name.endswith(".sql.j2"):
             tpl = j2env.get_template(test_name)
-            generated_test_name = test_base_name + ".gen.sql"
+            generated_test_name = f"{test_base_name}.gen.sql"
             tpl.stream().dump(os.path.join(suite_dir, generated_test_name))
             return generated_test_name
 
@@ -1452,9 +1423,8 @@ class TestSuite:
                 self.parallel_tests.append(test_name)
 
     def is_sequential_test(self, test_name):
-        if args.sequential:
-            if any(s in test_name for s in args.sequential):
-                return True
+        if args.sequential and any(s in test_name for s in args.sequential):
+            return True
 
         if test_name not in self.all_tags:
             return False
@@ -1469,7 +1439,7 @@ class TestSuite:
         """
 
         all_tests = list(self.get_selected_tests(filter_func))
-        all_tests = all_tests * self.args.test_runs
+        all_tests *= self.args.test_runs
         all_tests.sort(key=sort_key)
         return all_tests
 
@@ -1498,8 +1468,7 @@ class TestSuite:
                 continue
             if not filter_func(test_name):
                 continue
-            test_name = self.render_test_template(j2env, self.suite_path, test_name)
-            yield test_name
+            yield self.render_test_template(j2env, self.suite_path, test_name)
 
     @staticmethod
     def read_test_suite(args, suite_dir_name: str):
@@ -1507,9 +1476,7 @@ class TestSuite:
             try:
                 return int(clickhouse_execute(args, "EXISTS TABLE test.hits"))
             except Exception as e:
-                print(
-                    "Cannot check if dataset is available, assuming it's not: ", str(e)
-                )
+                print("Cannot check if dataset is available, assuming it's not: ", e)
                 return False
 
         base_dir = os.path.abspath(args.queries)
@@ -1524,7 +1491,7 @@ class TestSuite:
         if not os.path.exists(suite_tmp_path):
             os.makedirs(suite_tmp_path)
 
-        suite = suite_re_obj.group(1)
+        suite = suite_re_obj[1]
 
         if not os.path.isdir(suite_path):
             return None
@@ -1610,11 +1577,10 @@ def run_tests_array(all_tests_with_params: Tuple[List[str], int, TestSuite]):
             case = queue.get(timeout=args.timeout * 1.1)
             if not case:
                 break
+        elif all_tests:
+            case = all_tests.pop(0)
         else:
-            if all_tests:
-                case = all_tests.pop(0)
-            else:
-                break
+            break
 
         if server_died.is_set():
             stop_tests()
@@ -1723,7 +1689,7 @@ def check_server_started(args):
             return True
         except (ConnectionError, http.client.ImproperConnectionState) as e:
             if args.hung_check:
-                print("Connection error, will retry: ", str(e))
+                print("Connection error, will retry: ", e)
             else:
                 print(".", end="")
             sys.stdout.flush()
@@ -1734,12 +1700,7 @@ def check_server_started(args):
             print("\nConnection timeout, will not retry")
             break
         except Exception as e:
-            print(
-                "\nUexpected exception, will not retry: ",
-                type(e).__name__,
-                ": ",
-                str(e),
-            )
+            print("\nUexpected exception, will not retry: ", type(e).__name__, ": ", e)
             break
 
     print("\nAll connection tries failed")
@@ -1805,11 +1766,10 @@ def collect_build_flags(args):
         use_flag = use_flag.decode().lower()
         result.append(use_flag)
 
-    system_processor = clickhouse_execute(
+    if system_processor := clickhouse_execute(
         args,
         "SELECT value FROM system.build_options WHERE name = 'SYSTEM_PROCESSOR' LIMIT 1",
-    ).strip()
-    if system_processor:
+    ).strip():
         result.append(f"cpu-{system_processor.decode().lower()}")
 
     return result
@@ -1848,7 +1808,7 @@ def suite_key_func(item: str) -> Union[float, Tuple[int, str]]:
     if args.order == "random":
         return random.random()
 
-    if -1 == item.find("_"):
+    if "_" not in item:
         return 99998, ""
 
     prefix, suffix = item.split("_", 1)
@@ -1861,7 +1821,7 @@ def suite_key_func(item: str) -> Union[float, Tuple[int, str]]:
 
 def extract_key(key: str) -> str:
     return subprocess.getstatusoutput(
-        args.extract_from_config + " --try --config " + args.configserver + key
+        f"{args.extract_from_config} --try --config {args.configserver}{key}"
     )[1]
 
 
@@ -1884,10 +1844,7 @@ def do_run_tests(jobs, test_suite: TestSuite, parallel):
         run_total = max(jobs, run_total)
 
         batch_size = max(1, len(test_suite.parallel_tests) // jobs)
-        parallel_tests_array = []
-        for _ in range(jobs):
-            parallel_tests_array.append((None, batch_size, test_suite))
-
+        parallel_tests_array = [(None, batch_size, test_suite) for _ in range(jobs)]
         try:
             with closing(multiprocessing.Pool(processes=jobs)) as pool:
                 pool.map_async(run_tests_array, parallel_tests_array)

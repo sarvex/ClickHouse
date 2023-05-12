@@ -100,7 +100,7 @@ def checkout_head(pr_info: PRInfo) -> None:
     # It works ONLY for PRs, and only over ssh, so either
     # ROBOT_CLICKHOUSE_SSH_KEY should be set or ssh-agent should work
     assert pr_info.number
-    if not pr_info.head_name == pr_info.base_name:
+    if pr_info.head_name != pr_info.base_name:
         # We can't push to forks, sorry folks
         return
     remote_url = pr_info.event["pull_request"]["base"]["repo"]["ssh_url"]
@@ -120,7 +120,7 @@ def commit_push_staged(pr_info: PRInfo) -> None:
     # It works ONLY for PRs, and only over ssh, so either
     # ROBOT_CLICKHOUSE_SSH_KEY should be set or ssh-agent should work
     assert pr_info.number
-    if not pr_info.head_name == pr_info.base_name:
+    if pr_info.head_name != pr_info.base_name:
         # We can't push to forks, sorry folks
         return
     git_staged = git_runner("git diff --cached --name-only")

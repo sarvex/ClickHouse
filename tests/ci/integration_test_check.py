@@ -169,7 +169,7 @@ def main():
         run_by_hash_num = int(os.getenv("RUN_BY_HASH_NUM", "0"))
         run_by_hash_total = int(os.getenv("RUN_BY_HASH_TOTAL", "0"))
         check_name_with_group = (
-            check_name + f" [{run_by_hash_num + 1}/{run_by_hash_total}]"
+            f"{check_name} [{run_by_hash_num + 1}/{run_by_hash_total}]"
         )
     else:
         run_by_hash_num = 0

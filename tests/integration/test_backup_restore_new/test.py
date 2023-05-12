@@ -68,8 +68,14 @@ def get_path_to_backup(backup_name):
 
 def find_files_in_backup_folder(backup_name):
     path = get_path_to_backup(backup_name)
-    files = [f for f in glob.glob(path + "/**", recursive=True) if os.path.isfile(f)]
-    files += [f for f in glob.glob(path + "/.**", recursive=True) if os.path.isfile(f)]
+    files = [
+        f for f in glob.glob(f"{path}/**", recursive=True) if os.path.isfile(f)
+    ]
+    files += [
+        f
+        for f in glob.glob(f"{path}/.**", recursive=True)
+        if os.path.isfile(f)
+    ]
     return files
 
 
@@ -79,7 +85,7 @@ session_id_counter = 0
 def new_session_id():
     global session_id_counter
     session_id_counter += 1
-    return "Session #" + str(session_id_counter)
+    return f"Session #{session_id_counter}"
 
 
 def has_mutation_in_backup(mutation_id, backup_name, database, table):
@@ -277,9 +283,7 @@ def test_increment_backup_without_changes():
     assert backup_info.error == ""
     assert backup_info.num_files > 0
     assert backup_info.total_size > 0
-    assert (
-        0 < backup_info.num_entries and backup_info.num_entries <= backup_info.num_files
-    )
+    assert 0 < backup_info.num_entries <= backup_info.num_files
     assert backup_info.uncompressed_size > 0
     assert backup_info.compressed_size == backup_info.uncompressed_size
 
@@ -495,7 +499,7 @@ def test_backup_not_found_or_already_exists():
 
 
 def test_file_engine():
-    backup_name = f"File('/backups/file/')"
+    backup_name = "File('/backups/file/')"
     create_and_fill_table()
 
     assert instance.query("SELECT count(), sum(x) FROM test.table") == "100\t4950\n"
@@ -526,7 +530,7 @@ def test_database():
 
 
 def test_zip_archive():
-    backup_name = f"Disk('backups', 'archive.zip')"
+    backup_name = "Disk('backups', 'archive.zip')"
     create_and_fill_table()
 
     assert instance.query("SELECT count(), sum(x) FROM test.table") == "100\t4950\n"
@@ -542,7 +546,7 @@ def test_zip_archive():
 
 
 def test_zip_archive_with_settings():
-    backup_name = f"Disk('backups', 'archive_with_settings.zip')"
+    backup_name = "Disk('backups', 'archive_with_settings.zip')"
     create_and_fill_table()
 
     assert instance.query("SELECT count(), sum(x) FROM test.table") == "100\t4950\n"
@@ -560,7 +564,7 @@ def test_zip_archive_with_settings():
 
 
 def test_zip_archive_with_bad_compression_method():
-    backup_name = f"Disk('backups', 'archive_with_bad_compression_method.zip')"
+    backup_name = "Disk('backups', 'archive_with_bad_compression_method.zip')"
     create_and_fill_table()
 
     assert instance.query("SELECT count(), sum(x) FROM test.table") == "100\t4950\n"
@@ -586,7 +590,7 @@ def test_async():
         f"BACKUP TABLE test.table TO {backup_name} ASYNC"
     ).split("\t")
 
-    assert status == "CREATING_BACKUP\n" or status == "BACKUP_CREATED\n"
+    assert status in ["CREATING_BACKUP\n", "BACKUP_CREATED\n"]
 
     assert_eq_with_retry(
         instance,
@@ -600,7 +604,7 @@ def test_async():
         f"RESTORE TABLE test.table FROM {backup_name} ASYNC"
     ).split("\t")
 
-    assert status == "RESTORING\n" or status == "RESTORED\n"
+    assert status in ["RESTORING\n", "RESTORED\n"]
 
     assert_eq_with_retry(
         instance,
@@ -1085,7 +1089,7 @@ def test_projection():
     create_and_fill_table(n=3)
 
     instance.query("ALTER TABLE test.table ADD PROJECTION prjmax (SELECT MAX(x))")
-    instance.query(f"INSERT INTO test.table VALUES (100, 'a'), (101, 'b')")
+    instance.query("INSERT INTO test.table VALUES (100, 'a'), (101, 'b')")
 
     assert (
         instance.query(
@@ -1226,7 +1230,7 @@ def test_backup_all(exclude_system_log_tables):
             "processors_profile_log",
             "asynchronous_insert_log",
         ]
-        exclude_from_backup += ["system." + table_name for table_name in log_tables]
+        exclude_from_backup += [f"system.{table_name}" for table_name in log_tables]
 
     backup_command = f"BACKUP ALL {'EXCEPT TABLES ' + ','.join(exclude_from_backup) if exclude_from_backup else ''} TO {backup_name}"
 
@@ -1274,11 +1278,11 @@ def test_operation_id():
     ).split("\t")
 
     assert id == "first"
-    assert status == "CREATING_BACKUP\n" or status == "BACKUP_CREATED\n"
+    assert status in ["CREATING_BACKUP\n", "BACKUP_CREATED\n"]
 
     assert_eq_with_retry(
         instance,
-        f"SELECT status, error FROM system.backups WHERE id='first'",
+        "SELECT status, error FROM system.backups WHERE id='first'",
         TSV([["BACKUP_CREATED", ""]]),
     )
 
@@ -1289,11 +1293,11 @@ def test_operation_id():
     ).split("\t")
 
     assert id == "second"
-    assert status == "RESTORING\n" or status == "RESTORED\n"
+    assert status in ["RESTORING\n", "RESTORED\n"]
 
     assert_eq_with_retry(
         instance,
-        f"SELECT status, error FROM system.backups WHERE id='second'",
+        "SELECT status, error FROM system.backups WHERE id='second'",
         TSV([["RESTORED", ""]]),
     )
 
@@ -1322,7 +1326,7 @@ def test_system_backups():
     assert info.error == ""
     assert info.num_files > 0
     assert info.total_size > 0
-    assert 0 < info.num_entries and info.num_entries <= info.num_files
+    assert 0 < info.num_entries <= info.num_files
     assert info.uncompressed_size > 0
     assert info.compressed_size == info.uncompressed_size
     assert info.files_read == 0
@@ -1540,10 +1544,8 @@ def test_tables_dependency():
     ]
     for expect in expect_in_logs:
         assert any(
-            [
-                instance.contains_in_log(f"RestorerFromBackup: {x}")
-                for x in tuple(expect)
-            ]
+            instance.contains_in_log(f"RestorerFromBackup: {x}")
+            for x in tuple(expect)
         )
 
     drop()

@@ -80,17 +80,14 @@ class Reviews:
             if review.state in self.STATES and user in team
         }
 
-        # We consider reviews only from the given list of users
-        changes_requested = {
+        if changes_requested := {
             user: review
             for user, review in filtered_reviews.items()
             if review.state == "CHANGES_REQUESTED"
-        }
-
-        if changes_requested:
+        }:
             logging.info(
                 "The following users requested changes for the PR: %s",
-                ", ".join(user.login for user in changes_requested.keys()),
+                ", ".join(user.login for user in changes_requested),
             )
             return False
 
@@ -111,7 +108,7 @@ class Reviews:
         logging.info(
             "The following users from %s team approved the PR: %s",
             TEAM_NAME,
-            ", ".join(user.login for user in approved.keys()),
+            ", ".join(user.login for user in approved),
         )
 
         # The only reliable place to get the 100% accurate last_modified
@@ -260,12 +257,11 @@ def main():
     if args.check_green:
         logging.info("Checking that all PR's statuses are green")
         commit = repo.get_commit(pr.head.sha)
-        failed_statuses = [
+        if failed_statuses := [
             status.context
             for status in get_commit_filtered_statuses(commit)
             if status.state != "success"
-        ]
-        if failed_statuses:
+        ]:
             logging.warning(
                 "Some statuses aren't success:\n  %s", ",\n  ".join(failed_statuses)
             )

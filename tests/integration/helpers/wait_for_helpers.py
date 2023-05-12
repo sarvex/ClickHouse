@@ -6,10 +6,7 @@ def _parse_table_database(table, database):
     if database is not None:
         return table, database
 
-    if "." in table:
-        return reversed(table.split(".", 1))
-
-    return table, "default"
+    return reversed(table.split(".", 1)) if "." in table else (table, "default")
 
 
 def wait_for_delete_inactive_parts(node, table, database=None, **kwargs):

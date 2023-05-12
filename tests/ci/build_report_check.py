@@ -245,12 +245,10 @@ def main():
 
     logging.info("Going to upload prepared report")
     context_name_for_path = build_check_name.lower().replace(" ", "_")
-    s3_path_prefix = (
-        str(pr_info.number) + "/" + pr_info.sha + "/" + context_name_for_path
-    )
+    s3_path_prefix = f"{str(pr_info.number)}/{pr_info.sha}/{context_name_for_path}"
 
     url = s3_helper.upload_test_report_to_s3(
-        report_path, s3_path_prefix + "/report.html"
+        report_path, f"{s3_path_prefix}/report.html"
     )
     logging.info("Report url %s", url)
     print(f"::notice ::Report url: {url}")

@@ -45,9 +45,7 @@ def _can_export_binaries(build_config: BuildConfig) -> bool:
         return False
     if build_config["sanitizer"] != "":
         return True
-    if build_config["build_type"] != "":
-        return True
-    return False
+    return build_config["build_type"] != ""
 
 
 def get_packager_cmd(
@@ -189,7 +187,7 @@ def create_json_artifact(
         "job_name": GITHUB_JOB,
     }
 
-    json_name = "build_urls_" + build_name + ".json"
+    json_name = f"build_urls_{build_name}.json"
 
     print(f"Dump json report {result} to {json_name} with env build_urls_{build_name}")
 
@@ -224,13 +222,12 @@ def upload_master_static_binaries(
 ) -> None:
     """Upload binary artifacts to a static S3 links"""
     static_binary_name = build_config.get("static_binary_name", False)
-    if pr_info.number != 0:
+    if (
+        pr_info.number != 0
+        or not static_binary_name
+        or pr_info.base_ref != "master"
+    ):
         return
-    elif not static_binary_name:
-        return
-    elif pr_info.base_ref != "master":
-        return
-
     s3_path = "/".join((pr_info.base_ref, static_binary_name, "clickhouse"))
     binary = os.path.join(build_output_path, "clickhouse")
     url = s3_helper.upload_build_file_to_s3(binary, s3_path)
@@ -372,7 +369,7 @@ def main():
 
     if os.path.exists(log_path):
         log_url = s3_helper.upload_build_file_to_s3(
-            log_path, s3_path_prefix + "/" + os.path.basename(log_path)
+            log_path, f"{s3_path_prefix}/{os.path.basename(log_path)}"
         )
         logging.info("Log url %s", log_url)
     else:

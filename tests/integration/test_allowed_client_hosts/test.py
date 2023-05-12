@@ -13,7 +13,7 @@ clientA3 = cluster.add_instance("clientA3", hostname="clientA3.com")
 def check_clickhouse_is_ok(client_node, server_node):
     assert (
         client_node.exec_in_container(
-            ["bash", "-c", "/usr/bin/curl -s {}:8123 ".format(server_node.hostname)]
+            ["bash", "-c", f"/usr/bin/curl -s {server_node.hostname}:8123 "]
         )
         == "Ok.\n"
     )

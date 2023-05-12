@@ -53,11 +53,7 @@ def dowload_with_progress(url, path):
                         if sys.stdout.isatty():
                             done = int(50 * dl / total_length)
                             percent = int(100 * float(dl) / total_length)
-                            sys.stdout.write(
-                                "\r[{}{}] {}%".format(
-                                    "=" * done, " " * (50 - done), percent
-                                )
-                            )
+                            sys.stdout.write(f'\r[{"=" * done}{" " * (50 - done)}] {percent}%')
                             sys.stdout.flush()
             break
         except Exception as ex:
@@ -67,9 +63,7 @@ def dowload_with_progress(url, path):
             if os.path.exists(path):
                 os.remove(path)
     else:
-        raise Exception(
-            "Cannot download dataset from {}, all retries exceeded".format(url)
-        )
+        raise Exception(f"Cannot download dataset from {url}, all retries exceeded")
 
     sys.stdout.write("\n")
     logging.info("Downloading finished")

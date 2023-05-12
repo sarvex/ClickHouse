@@ -1,8 +1,6 @@
 def corrupt_part_data_on_disk(node, table, part_name):
     part_path = node.query(
-        "SELECT path FROM system.parts WHERE table = '{}' and name = '{}'".format(
-            table, part_name
-        )
+        f"SELECT path FROM system.parts WHERE table = '{table}' and name = '{part_name}'"
     ).strip()
 
     corrupt_part_data_by_path(node, part_path)

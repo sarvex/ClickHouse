@@ -10,7 +10,7 @@ class TSV:
     def __init__(self, contents):
         if isinstance(contents, IOBase):
             raw_lines = contents.readlines()
-        elif isinstance(contents, str) or isinstance(contents, str):
+        elif isinstance(contents, str):
             raw_lines = contents.splitlines(True)
         elif isinstance(contents, list):
             raw_lines = [
@@ -40,12 +40,12 @@ class TSV:
     def diff(self, other, n1="", n2=""):
         if not isinstance(other, TSV):
             return self.diff(TSV(other), n1=n1, n2=n2)
-        return list(
+        return [
             line.rstrip()
             for line in difflib.unified_diff(
                 self.lines, other.lines, fromfile=n1, tofile=n2
             )
-        )[2:]
+        ][2:]
 
     def __str__(self):
         return "\n".join(self.lines)
@@ -122,7 +122,7 @@ def assert_eq_with_retry(
 
 def assert_logs_contain(instance, substring):
     if not instance.contains_in_log(substring):
-        raise AssertionError("'{}' not found in logs".format(substring))
+        raise AssertionError(f"'{substring}' not found in logs")
 
 
 def assert_logs_contain_with_retry(instance, substring, retry_count=20, sleep_time=0.5):
@@ -135,7 +135,7 @@ def assert_logs_contain_with_retry(instance, substring, retry_count=20, sleep_ti
             logging.exception(f"contains_in_log_with_retry retry {i+1} exception {ex}")
             time.sleep(sleep_time)
     else:
-        raise AssertionError("'{}' not found in logs".format(substring))
+        raise AssertionError(f"'{substring}' not found in logs")
 
 
 def exec_query_with_retry(
@@ -163,16 +163,17 @@ def csv_compare(result, expected):
     csv_result = TSV(result)
     csv_expected = TSV(expected)
     mismatch = []
-    max_len = (
-        len(csv_result) if len(csv_result) > len(csv_expected) else len(csv_expected)
-    )
+    max_len = max(len(csv_result), len(csv_expected))
     for i in range(max_len):
         if i >= len(csv_result):
             mismatch.append("-[%d]=%s" % (i, csv_expected.lines[i]))
         elif i >= len(csv_expected):
             mismatch.append("+[%d]=%s" % (i, csv_result.lines[i]))
         elif csv_expected.lines[i] != csv_result.lines[i]:
-            mismatch.append("-[%d]=%s" % (i, csv_expected.lines[i]))
-            mismatch.append("+[%d]=%s" % (i, csv_result.lines[i]))
-
+            mismatch.extend(
+                (
+                    "-[%d]=%s" % (i, csv_expected.lines[i]),
+                    "+[%d]=%s" % (i, csv_result.lines[i]),
+                )
+            )
     return "\n".join(mismatch)

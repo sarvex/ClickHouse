@@ -119,9 +119,11 @@ def main():
             path = os.path.join(test_output, f)
             additional_files.append(path)
             with open(path, "r", encoding="utf-8") as check_file:
-                for line in check_file:
-                    if "ERROR" in line:
-                        test_results.append(TestResult(line.split(":")[-1], "FAIL"))
+                test_results.extend(
+                    TestResult(line.split(":")[-1], "FAIL")
+                    for line in check_file
+                    if "ERROR" in line
+                )
         if test_results:
             status = "failure"
             description = "Found errors in docs"

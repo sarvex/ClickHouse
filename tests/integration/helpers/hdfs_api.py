@@ -87,7 +87,7 @@ class HDFSApi(object):
             raise Exception("kerberos principal and keytab are required")
 
         with mk_krb_conf(self.krb_conf, self.kdc_ip) as instantiated_krb_conf:
-            logging.debug("instantiated_krb_conf {}".format(instantiated_krb_conf))
+            logging.debug(f"instantiated_krb_conf {instantiated_krb_conf}")
 
             os.environ["KRB5_CONFIG"] = instantiated_krb_conf
 
@@ -104,54 +104,40 @@ class HDFSApi(object):
                     res = subprocess.run(cmd, shell=True)
                     if res.returncode != 0:
                         # check_call(...) from subprocess does not print stderr, so we do it manually
-                        logging.debug(
-                            "Stderr:\n{}\n".format(res.stderr.decode("utf-8"))
-                        )
-                        logging.debug(
-                            "Stdout:\n{}\n".format(res.stdout.decode("utf-8"))
-                        )
-                        logging.debug("Env:\n{}\n".format(env))
+                        logging.debug(f'Stderr:\n{res.stderr.decode("utf-8")}\n')
+                        logging.debug(f'Stdout:\n{res.stdout.decode("utf-8")}\n')
+                        logging.debug(f"Env:\n{env}\n")
                         raise Exception(
-                            "Command {} return non-zero code {}: {}".format(
-                                args, res.returncode, res.stderr.decode("utf-8")
-                            )
+                            f'Command {args} return non-zero code {res.returncode}: {res.stderr.decode("utf-8")}'
                         )
 
                     logging.debug("KDC started, kinit successfully run")
                     return
                 except Exception as ex:
-                    logging.debug("Can't run kinit ... waiting {}".format(str(ex)))
+                    logging.debug(f"Can't run kinit ... waiting {str(ex)}")
                     time.sleep(1)
 
         raise Exception("Kinit running failure")
 
     @staticmethod
     def req_wrapper(func, expected_code, cnt=2, **kwargs):
-        for i in range(0, cnt):
-            logging.debug(f"CALL: {str(kwargs)}")
+        for _ in range(0, cnt):
+            logging.debug(f"CALL: {kwargs}")
             response_data = func(**kwargs)
             logging.debug(
                 f"response_data:{response_data.content} headers:{response_data.headers}"
             )
             if response_data.status_code == expected_code:
                 return response_data
-            else:
-                logging.error(
-                    f"unexpected response_data.status_code {response_data.status_code} != {expected_code}"
-                )
-                time.sleep(1)
+            logging.error(
+                f"unexpected response_data.status_code {response_data.status_code} != {expected_code}"
+            )
+            time.sleep(1)
         response_data.raise_for_status()
 
     def read_data(self, path, universal_newlines=True):
         logging.debug(
-            "read_data protocol:{} host:{} ip:{} proxy port:{} data port:{} path: {}".format(
-                self.protocol,
-                self.host,
-                self.hdfs_ip,
-                self.proxy_port,
-                self.data_port,
-                path,
-            )
+            f"read_data protocol:{self.protocol} host:{self.host} ip:{self.hdfs_ip} proxy port:{self.proxy_port} data port:{self.data_port} path: {path}"
         )
         response = self.req_wrapper(
             requests.get,
@@ -168,13 +154,13 @@ class HDFSApi(object):
         location = None
         if self.kerberized:
             location = response.headers["Location"].replace(
-                "kerberizedhdfs1:1006", "{}:{}".format(self.hdfs_ip, self.data_port)
+                "kerberizedhdfs1:1006", f"{self.hdfs_ip}:{self.data_port}"
             )
         else:
             location = response.headers["Location"].replace(
-                "hdfs1:50075", "{}:{}".format(self.hdfs_ip, self.data_port)
+                "hdfs1:50075", f"{self.hdfs_ip}:{self.data_port}"
             )
-        logging.debug("redirected to {}".format(location))
+        logging.debug(f"redirected to {location}")
 
         response_data = self.req_wrapper(
             requests.get,
@@ -185,21 +171,11 @@ class HDFSApi(object):
             auth=self.kerberos_auth,
         )
 
-        if universal_newlines:
-            return response_data.text
-        else:
-            return response_data.content
+        return response_data.text if universal_newlines else response_data.content
 
     def write_data(self, path, content):
         logging.debug(
-            "write_data protocol:{} host:{} port:{} path: {} user:{}, principal:{}".format(
-                self.protocol,
-                self.host,
-                self.proxy_port,
-                path,
-                self.user,
-                self.principal,
-            )
+            f"write_data protocol:{self.protocol} host:{self.host} port:{self.proxy_port} path: {path} user:{self.user}, principal:{self.principal}"
         )
         named_file = NamedTemporaryFile(mode="wb+")
         fpath = named_file.name
@@ -225,17 +201,17 @@ class HDFSApi(object):
             auth=self.kerberos_auth,
         )
 
-        logging.debug("HDFS api response:{}".format(response.headers))
+        logging.debug(f"HDFS api response:{response.headers}")
 
         # additional_params = '&'.join(
         #     response.headers['Location'].split('&')[1:2] + ["user.name={}".format(self.user), "overwrite=true"])
         if self.kerberized:
             location = response.headers["Location"].replace(
-                "kerberizedhdfs1:1006", "{}:{}".format(self.hdfs_ip, self.data_port)
+                "kerberizedhdfs1:1006", f"{self.hdfs_ip}:{self.data_port}"
             )
         else:
             location = response.headers["Location"].replace(
-                "hdfs1:50075", "{}:{}".format(self.hdfs_ip, self.data_port)
+                "hdfs1:50075", f"{self.hdfs_ip}:{self.data_port}"
             )
 
         with open(fpath, mode="rb") as fh:

@@ -343,13 +343,11 @@ def get_token_from_aws():
 
 
 def get_workflow_jobs(workflow_description, token):
-    jobs_url = (
-        workflow_description.api_url + f"/attempts/{workflow_description.attempt}/jobs"
-    )
+    jobs_url = f"{workflow_description.api_url}/attempts/{workflow_description.attempt}/jobs"
     jobs = []
     i = 1
     while True:
-        got_jobs = _exec_get_with_retry(jobs_url + f"?page={i}", token)
+        got_jobs = _exec_get_with_retry(f"{jobs_url}?page={i}", token)
         if len(got_jobs["jobs"]) == 0:
             break
 
